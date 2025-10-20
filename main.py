@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 import pygame
 import os
+import json
 
 
 class AudioTester:
@@ -17,6 +18,7 @@ class AudioTester:
         self.current_file = None
         self.is_playing = False
         self.volume = 0.7
+        self.config_file = "audio_tester_config.json"
 
         # Słownik z częstotliwościami EQ (Hz)
         self.eq_bands = {
@@ -33,9 +35,13 @@ class AudioTester:
         }
 
         self.eq_values = {band: 0 for band in self.eq_bands.keys()}
-        self.eq_scales = {}  # Inicjalizacja słownika przed użyciem
+        self.eq_scales = {}
+
+        # Ustawienie zamykania okna
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         self.create_widgets()
+        self.load_state()  # Załaduj zapisany stan
 
     def create_widgets(self):
         # Główny kontener
@@ -54,7 +60,7 @@ class AudioTester:
 
         # Sekcja odtwarzacza
         player_frame = ttk.LabelFrame(main_frame, text="Odtwarzacz", padding="10")
-        player_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N), pady=5, padx=(0, 5))
+        player_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5, padx=(0, 5))
 
         self.play_button = ttk.Button(player_frame, text="▶ Play", command=self.play_pause)
         self.play_button.grid(row=0, column=0, padx=5, pady=5)
@@ -68,21 +74,21 @@ class AudioTester:
         volume_frame = ttk.LabelFrame(player_frame, text="Głośność", padding="5")
         volume_frame.grid(row=2, column=0, columnspan=2, pady=10, sticky=(tk.W, tk.E))
 
+        # POPRAWKA: Label PRZED scale
+        self.volume_label = ttk.Label(volume_frame, text="70%", width=8)
+        self.volume_label.grid(row=0, column=1, padx=5)
+
         self.volume_scale = ttk.Scale(volume_frame, from_=0, to=100, orient=tk.HORIZONTAL,
                                       command=self.change_volume, length=200)
         self.volume_scale.set(70)
         self.volume_scale.grid(row=0, column=0, padx=5)
-
-        # POPRAWKA: Tworzenie volume_label
-        self.volume_label = ttk.Label(volume_frame, text="70%")
-        self.volume_label.grid(row=0, column=1, padx=5)
 
         # Sekcja equalizera
         eq_frame = ttk.LabelFrame(main_frame, text="Equalizer (częstotliwości)", padding="10")
         eq_frame.grid(row=1, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
 
         # Canvas z scrollbarem dla EQ
-        eq_canvas = tk.Canvas(eq_frame, height=400)
+        eq_canvas = tk.Canvas(eq_frame, height=400, width=300)  # POPRAWKA: Stała szerokość
         scrollbar = ttk.Scrollbar(eq_frame, orient="vertical", command=eq_canvas.yview)
         scrollable_frame = ttk.Frame(eq_canvas)
 
@@ -97,7 +103,7 @@ class AudioTester:
         eq_canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
 
-        # Suwaki EQ - POPRAWKA: Dodajemy do słownika PRZED użyciem w lambda
+        # Suwaki EQ
         row = 0
         for band_name in self.eq_bands.keys():
             frame = ttk.Frame(scrollable_frame)
@@ -109,16 +115,13 @@ class AudioTester:
             value_label = ttk.Label(frame, text="0 dB", width=8)
             value_label.grid(row=0, column=2, padx=5)
 
-            # POPRAWKA: Najpierw dodajemy do słownika
             self.eq_scales[band_name] = (None, value_label)
 
-            # Potem tworzymy scale z referencją do band_name
             scale = ttk.Scale(frame, from_=-12, to=12, orient=tk.HORIZONTAL,
-                              command=lambda val, b=band_name: self.update_eq(b, val))
+                              command=lambda val, b=band_name: self.update_eq(b, val), length=150)  # Stała długość
             scale.set(0)
             scale.grid(row=0, column=1, padx=5)
 
-            # Aktualizujemy wpis w słowniku
             self.eq_scales[band_name] = (scale, value_label)
 
             row += 1
@@ -126,10 +129,11 @@ class AudioTester:
         # Przycisk reset EQ
         ttk.Button(eq_frame, text="Reset EQ", command=self.reset_eq).grid(row=1, column=0, pady=10)
 
-        # Konfiguracja grid
+        # POPRAWKA: Konfiguracja grid - column 0 bez weight
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(1, weight=1)
+        main_frame.columnconfigure(0, weight=0)  # Player - bez rozciągania
+        main_frame.columnconfigure(1, weight=1)  # EQ - może się rozciągać
         main_frame.rowconfigure(1, weight=1)
 
     def add_files(self):
@@ -188,14 +192,59 @@ class AudioTester:
         self.eq_values[band] = value
         scale, label = self.eq_scales[band]
         label.config(text=f"{value:.1f} dB")
-        # Uwaga: Pygame mixer nie obsługuje natywnie EQ w czasie rzeczywistym
-        # To wymaga bardziej zaawansowanej implementacji z przetwarzaniem audio
 
     def reset_eq(self):
         for band_name, (scale, label) in self.eq_scales.items():
             scale.set(0)
             label.config(text="0 dB")
             self.eq_values[band_name] = 0
+
+    def save_state(self):
+        """Zapisuje stan aplikacji do pliku JSON"""
+        state = {
+            'files': list(self.file_listbox.get(0, tk.END)),
+            'volume': self.volume_scale.get(),
+            'eq_values': {band: scale.get() for band, (scale, _) in self.eq_scales.items()}
+        }
+        try:
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(state, f, indent=2)
+        except Exception as e:
+            print(f"Błąd zapisu: {e}")
+
+    def load_state(self):
+        """Ładuje zapisany stan aplikacji"""
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    state = json.load(f)
+
+                # Przywróć listę plików
+                for file_path in state.get('files', []):
+                    if os.path.exists(file_path):  # Sprawdź czy plik nadal istnieje
+                        self.file_listbox.insert(tk.END, file_path)
+
+                # Przywróć głośność
+                volume = state.get('volume', 70)
+                self.volume_scale.set(volume)
+                self.change_volume(volume)
+
+                # Przywróć ustawienia EQ
+                eq_vals = state.get('eq_values', {})
+                for band, value in eq_vals.items():
+                    if band in self.eq_scales:
+                        scale, label = self.eq_scales[band]
+                        scale.set(value)
+                        label.config(text=f"{float(value):.1f} dB")
+
+        except Exception as e:
+            print(f"Błąd odczytu: {e}")
+
+    def on_closing(self):
+        """Obsługa zamykania aplikacji"""
+        self.save_state()
+        pygame.mixer.quit()
+        self.root.destroy()
 
 
 if __name__ == "__main__":
