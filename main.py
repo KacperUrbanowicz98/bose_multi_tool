@@ -2,9 +2,6 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 import pygame
 import os
-import numpy as np
-from scipy import signal
-import threading
 
 
 class AudioTester:
@@ -36,6 +33,7 @@ class AudioTester:
         }
 
         self.eq_values = {band: 0 for band in self.eq_bands.keys()}
+        self.eq_scales = {}  # Inicjalizacja słownika przed użyciem
 
         self.create_widgets()
 
@@ -75,6 +73,7 @@ class AudioTester:
         self.volume_scale.set(70)
         self.volume_scale.grid(row=0, column=0, padx=5)
 
+        # POPRAWKA: Tworzenie volume_label
         self.volume_label = ttk.Label(volume_frame, text="70%")
         self.volume_label.grid(row=0, column=1, padx=5)
 
@@ -98,8 +97,7 @@ class AudioTester:
         eq_canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
 
-        # Suwaki EQ
-        self.eq_scales = {}
+        # Suwaki EQ - POPRAWKA: Dodajemy do słownika PRZED użyciem w lambda
         row = 0
         for band_name in self.eq_bands.keys():
             frame = ttk.Frame(scrollable_frame)
@@ -108,15 +106,21 @@ class AudioTester:
             label = ttk.Label(frame, text=band_name, width=10)
             label.grid(row=0, column=0, padx=5)
 
-            scale = ttk.Scale(frame, from_=-12, to=12, orient=tk.HORIZONTAL,
-                              command=lambda val, band=band_name: self.update_eq(band, val))
-            scale.set(0)
-            scale.grid(row=0, column=1, padx=5)
-
             value_label = ttk.Label(frame, text="0 dB", width=8)
             value_label.grid(row=0, column=2, padx=5)
 
+            # POPRAWKA: Najpierw dodajemy do słownika
+            self.eq_scales[band_name] = (None, value_label)
+
+            # Potem tworzymy scale z referencją do band_name
+            scale = ttk.Scale(frame, from_=-12, to=12, orient=tk.HORIZONTAL,
+                              command=lambda val, b=band_name: self.update_eq(b, val))
+            scale.set(0)
+            scale.grid(row=0, column=1, padx=5)
+
+            # Aktualizujemy wpis w słowniku
             self.eq_scales[band_name] = (scale, value_label)
+
             row += 1
 
         # Przycisk reset EQ
