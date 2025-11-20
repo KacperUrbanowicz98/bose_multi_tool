@@ -102,10 +102,12 @@ class ConfigManager:
                 "version": "1.0.0",
                 "first_run": True,
                 "window_geometry": {
-                    "main": "480x550",
                     "music_player": "650x580",
                     "tone_generator": "580x680"
                 }
+            },
+            "security": {
+                "engineering_password": "bose2024"
             },
             "operators": {
                 "hrid_list": [
