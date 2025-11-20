@@ -1,6 +1,6 @@
 """
 Test 1: Odtwarzacz Muzyki
-Bose Style - White Theme (wersja polska z playlistą)
+Bose Style - White Theme (wersja polska z playlistą + progressbar + seek)
 """
 
 import tkinter as tk
@@ -8,6 +8,8 @@ from tkinter import ttk, filedialog, messagebox
 import pygame
 import os
 import json
+import time
+from mutagen import File
 
 class MusicPlayerTest:
     def __init__(self, window):
@@ -34,12 +36,16 @@ class MusicPlayerTest:
             pygame.mixer.init()
 
         # Zmienne stanu
-        self.playlist = []  # Lista utworów
-        self.current_index = -1  # Indeks aktualnie odtwarzanego
+        self.playlist = []
+        self.current_index = -1
         self.current_file = None
         self.is_playing = False
         self.is_paused = False
         self.volume = 50
+        self.song_length = 0
+        self.update_job = None
+        self.start_time = 0  # Czas startu utworu
+        self.pause_pos = 0   # Pozycja przy pauzowaniu
 
         # Ścieżka do pliku konfiguracyjnego
         self.config_file = "audio_tool_config.json"
@@ -52,6 +58,9 @@ class MusicPlayerTest:
 
         # Automatyczne załadowanie playlisty
         self.refresh_playlist_display()
+
+        # Zatrzymaj muzykę przy zamykaniu okna
+        self.window.protocol("WM_DELETE_WINDOW", self.close_window)
 
     def load_playlist_from_config(self):
         """Wczytuje playlistę z konfiguracji"""
@@ -119,6 +128,32 @@ class MusicPlayerTest:
         )
         self.file_label.pack()
 
+        # Pasek postępu
+        progress_container = tk.Frame(info_frame, bg=self.colors['bg_card'])
+        progress_container.pack(fill=tk.X, padx=10, pady=(5, 0))
+
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(
+            progress_container,
+            variable=self.progress_var,
+            maximum=100,
+            mode='determinate',
+            length=400
+        )
+        self.progress_bar.pack(fill=tk.X)
+        # Bind kliknięcia na pasek
+        self.progress_bar.bind('<Button-1>', self.seek_to_position)
+
+        # Etykieta czasu
+        self.time_label = tk.Label(
+            info_frame,
+            text="00:00 / 00:00",
+            font=('Arial', 8),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text_secondary']
+        )
+        self.time_label.pack(pady=(2, 0))
+
         # === PLAYLISTA ===
         playlist_frame = tk.LabelFrame(
             main_frame,
@@ -152,9 +187,6 @@ class MusicPlayerTest:
         )
         self.playlist_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.playlist_listbox.yview)
-
-        # Single click = zaznacz (nie odtwarzaj)
-        # Brak bindu - domyślne zachowanie Listbox
 
         # Przyciski playlisty
         playlist_btn_frame = tk.Frame(playlist_frame, bg=self.colors['bg_main'])
@@ -375,7 +407,7 @@ class MusicPlayerTest:
             self.refresh_playlist_display()
             self.save_playlist_to_config()
 
-            # FIX: Przywróć focus na to okno
+            # Przywróć focus na to okno
             self.window.lift()
             self.window.focus_force()
 
@@ -388,7 +420,6 @@ class MusicPlayerTest:
             self.refresh_playlist_display()
             self.save_playlist_to_config()
 
-            # Jeśli usunięto aktualnie odtwarzany
             if index == self.current_index:
                 self.stop_music()
                 self.current_index = -1
@@ -410,7 +441,6 @@ class MusicPlayerTest:
             prefix = "▶ " if i == self.current_index else "  "
             self.playlist_listbox.insert(tk.END, f"{prefix}{filename}")
 
-        # Aktywuj/dezaktywuj przycisk Play
         if self.playlist:
             self.play_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
         else:
@@ -419,6 +449,9 @@ class MusicPlayerTest:
     def load_and_play(self, filepath):
         """Ładuje i odtwarza plik"""
         try:
+            # NAJPIERW pobierz długość utworu
+            self.song_length = self.get_song_length(filepath)
+
             pygame.mixer.music.load(filepath)
             self.current_file = filepath
             filename = os.path.basename(filepath)
@@ -429,11 +462,20 @@ class MusicPlayerTest:
             )
 
             pygame.mixer.music.play()
+            pygame.mixer.music.set_volume(self.volume / 82.0)
             self.is_playing = True
             self.is_paused = False
 
+            # Zapisz czas startu
+            self.start_time = time.time()
+
             self.refresh_playlist_display()
             self.update_buttons_playing()
+
+            # Uruchom aktualizację paska postępu
+            if self.update_job:
+                self.window.after_cancel(self.update_job)
+            self.update_progress()
 
         except Exception as e:
             messagebox.showerror("Błąd", f"Nie można odtworzyć:\n{str(e)}")
@@ -444,18 +486,23 @@ class MusicPlayerTest:
             messagebox.showwarning("Uwaga", "Playlista jest pusta")
             return
 
-        # Sprawdź czy coś jest zaznaczone
         selection = self.playlist_listbox.curselection()
         if selection:
             self.current_index = selection[0]
         elif self.current_index == -1:
-            # Jeśli nic nie zaznaczone, odtwórz pierwszy
             self.current_index = 0
 
         if self.is_paused:
             pygame.mixer.music.unpause()
             self.is_paused = False
             self.is_playing = True
+
+            # Aktualizuj czas startu po wznowieniu
+            self.start_time = time.time() - self.pause_pos
+
+            if self.update_job:
+                self.window.after_cancel(self.update_job)
+            self.update_progress()
         else:
             self.load_and_play(self.playlist[self.current_index])
 
@@ -464,8 +511,16 @@ class MusicPlayerTest:
     def pause_music(self):
         """Pauzuje"""
         if self.is_playing and not self.is_paused:
+            # Zapisz pozycję przy pauzowaniu
+            self.pause_pos = time.time() - self.start_time
+
             pygame.mixer.music.pause()
             self.is_paused = True
+
+            if self.update_job:
+                self.window.after_cancel(self.update_job)
+                self.update_job = None
+
             self.update_buttons_paused()
 
     def stop_music(self):
@@ -473,32 +528,130 @@ class MusicPlayerTest:
         pygame.mixer.music.stop()
         self.is_playing = False
         self.is_paused = False
+
+        if self.update_job:
+            self.window.after_cancel(self.update_job)
+            self.update_job = None
+
+        self.progress_var.set(0)
+        self.time_label.config(text="00:00 / 00:00")
+
         self.update_buttons_stopped()
 
     def rewind_10s(self):
-        """Cofa o 10s"""
-        if self.is_playing:
+        """Cofa o 10 sekund"""
+        if self.is_playing and not self.is_paused and self.current_file:
             try:
-                pos = pygame.mixer.music.get_pos() / 1000.0
-                new_pos = max(0, pos - 10)
+                # Oblicz aktualną pozycję
+                elapsed = time.time() - self.start_time
+                new_pos = max(0, elapsed - 10)
+
+                # Zatrzymaj i uruchom od nowej pozycji
+                pygame.mixer.music.stop()
+                pygame.mixer.music.load(self.current_file)
                 pygame.mixer.music.play(start=new_pos)
-            except:
-                pass
+                pygame.mixer.music.set_volume(self.volume / 82.0)
+
+                # Aktualizuj czas startu
+                self.start_time = time.time() - new_pos
+
+            except Exception as e:
+                print(f"Błąd przewijania: {e}")
 
     def forward_10s(self):
-        """Przewija o 10s"""
-        if self.is_playing:
+        """Przewija o 10 sekund"""
+        if self.is_playing and not self.is_paused and self.current_file:
             try:
-                pos = pygame.mixer.music.get_pos() / 1000.0
-                pygame.mixer.music.play(start=pos + 10)
-            except:
-                pass
+                # Oblicz aktualną pozycję
+                elapsed = time.time() - self.start_time
+                new_pos = elapsed + 10
+
+                # Zatrzymaj i uruchom od nowej pozycji
+                pygame.mixer.music.stop()
+                pygame.mixer.music.load(self.current_file)
+                pygame.mixer.music.play(start=new_pos)
+                pygame.mixer.music.set_volume(self.volume / 82.0)
+
+                # Aktualizuj czas startu
+                self.start_time = time.time() - new_pos
+
+            except Exception as e:
+                print(f"Błąd przewijania: {e}")
+
+    def seek_to_position(self, event):
+        """Przewija do klikniętej pozycji na pasku"""
+        if self.is_playing and self.song_length > 0 and self.current_file:
+            try:
+                # Oblicz procent kliknięcia
+                click_pos = event.x
+                total_width = self.progress_bar.winfo_width()
+                percent = (click_pos / total_width) * 100
+                percent = max(0, min(100, percent))
+
+                # Oblicz nową pozycję w sekundach
+                new_pos = (percent / 100) * self.song_length
+
+                # Przewiń
+                pygame.mixer.music.stop()
+                pygame.mixer.music.load(self.current_file)
+                pygame.mixer.music.play(start=new_pos)
+                pygame.mixer.music.set_volume(self.volume / 82.0)
+
+                # Aktualizuj czas startu
+                self.start_time = time.time() - new_pos
+
+            except Exception as e:
+                print(f"Błąd przewijania: {e}")
 
     def change_volume(self, value):
         """Zmienia głośność"""
         self.volume = int(float(value))
         pygame.mixer.music.set_volume(self.volume / 82.0)
         self.volume_label.config(text=f"POZIOM: {self.volume}%")
+
+    def update_progress(self):
+        """Aktualizuje pasek postępu i czas"""
+        if self.is_playing and not self.is_paused:
+            try:
+                # Oblicz aktualną pozycję od początku utworu
+                pos_sec = time.time() - self.start_time
+
+                # Aktualizuj pasek
+                if self.song_length > 0:
+                    progress = (pos_sec / self.song_length) * 100
+                    self.progress_var.set(min(progress, 100))
+                else:
+                    # Jeśli nie znamy długości, użyj get_pos jako fallback
+                    pos_ms = pygame.mixer.music.get_pos()
+                    if pos_ms >= 0:
+                        pos_sec = pos_ms / 1000.0
+
+                # Formatuj czas
+                current_time = self.format_time(pos_sec)
+                total_time = self.format_time(self.song_length) if self.song_length > 0 else "00:00"
+                self.time_label.config(text=f"{current_time} / {total_time}")
+            except:
+                pass
+
+        # Zaplanuj następną aktualizację (co 100ms)
+        if self.is_playing:
+            self.update_job = self.window.after(100, self.update_progress)
+
+    def format_time(self, seconds):
+        """Formatuje sekundy na MM:SS"""
+        mins = int(seconds // 60)
+        secs = int(seconds % 60)
+        return f"{mins:02d}:{secs:02d}"
+
+    def get_song_length(self, filepath):
+        """Odczytuje długość utworu w sekundach"""
+        try:
+            audio = File(filepath)
+            if audio is not None and hasattr(audio.info, 'length'):
+                return audio.info.length
+            return 0
+        except:
+            return 0
 
     def update_buttons_playing(self):
         """Aktualizuje przyciski - stan playing"""
@@ -516,8 +669,8 @@ class MusicPlayerTest:
     def update_buttons_stopped(self):
         """Aktualizuje przyciski - stan stopped"""
         self.play_btn.config(state=tk.NORMAL if self.playlist else tk.DISABLED,
-                            bg=self.colors['button_bg'] if self.playlist else self.colors['bg_card'],
-                            fg=self.colors['button_fg'] if self.playlist else self.colors['text_secondary'])
+                             bg=self.colors['button_bg'] if self.playlist else self.colors['bg_card'],
+                             fg=self.colors['button_fg'] if self.playlist else self.colors['text_secondary'])
         self.pause_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
         self.stop_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
         self.rewind_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
@@ -526,9 +679,17 @@ class MusicPlayerTest:
     def close_window(self):
         """Zamyka okno"""
         try:
+            # Anuluj aktualizację
+            if self.update_job:
+                self.window.after_cancel(self.update_job)
+
+            # Zatrzymaj muzykę
             if self.is_playing:
                 pygame.mixer.music.stop()
+
+            # Zapisz playlistę
             self.save_playlist_to_config()
+
             self.window.destroy()
         except Exception as e:
             print(f"Błąd zamykania: {e}")
