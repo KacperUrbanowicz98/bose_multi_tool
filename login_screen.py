@@ -102,7 +102,7 @@ class LoginScreen:
         login_container.pack(pady=10, ipady=15, ipadx=20)
 
         tk.Label(login_container,
-                 text="HRID OPERATORA:",
+                 text="HRID:",
                  font=('Arial', 9, 'bold'),
                  bg=self.COLORS['bg_card'],
                  fg=self.COLORS['text_primary']).pack(pady=(0, 8))

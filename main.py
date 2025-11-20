@@ -738,7 +738,7 @@ class AudioMultiTool:
 
         version = self.config_mgr.get('app.version', '1.0.0')
         tk.Label(footer_frame,
-                 text=f"v{version} | Tryb inżynieryjny: Ctrl+Shift+DDD",
+                 text=f"v{version}",
                  font=('Arial', 6),
                  bg=self.COLORS['bg_main'],
                  fg=self.COLORS['text_secondary']).pack()
