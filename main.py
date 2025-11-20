@@ -11,9 +11,10 @@ import sys
 import os
 import json
 
+
 from resource_manager import get_resource_manager
 from config_manager import get_config_manager
-
+from login_screen import LoginScreen
 
 class AudioMultiTool:
     """Główna klasa aplikacji - Bose White Style"""
@@ -422,7 +423,35 @@ class AudioMultiTool:
 if __name__ == "__main__":
     try:
         root = tk.Tk()
-        app = AudioMultiTool(root)
+        root.configure(bg='#FFFFFF')
+        root.title("Audio Testing Multi-Tool - Login")
+        root.geometry("500x600")
+
+        # Zmienna do przechowania HRID
+        logged_hrid = None
+
+
+        def on_login_success(hrid):
+            """Callback po udanym logowaniu"""
+            global logged_hrid
+            logged_hrid = hrid
+
+            # Usuń ekran logowania
+            for widget in root.winfo_children():
+                widget.destroy()
+
+            # Zmień tytuł i rozmiar
+            root.title("Narzędzie Testowania Audio")
+            root.geometry("480x600")
+
+            # Uruchom główną aplikację
+            app = AudioMultiTool(root)
+            app.logged_operator = hrid  # Zapisz HRID w aplikacji
+
+
+        # Pokaż ekran logowania
+        login = LoginScreen(root, on_login_success)
+
         root.mainloop()
     except KeyboardInterrupt:
         print("\nAplikacja przerwana (Ctrl+C)")
@@ -433,3 +462,4 @@ if __name__ == "__main__":
         except:
             print(f"BŁĄD: {e}")
         sys.exit(1)
+
