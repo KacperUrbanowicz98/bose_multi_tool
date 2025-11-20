@@ -1,7 +1,6 @@
 """
 Test 1: Odtwarzacz Muzyki
-Moduł testowy dla Audio Testing Multi-Tool
-Z pełną obsługą błędów i walidacją
+Bose Style - White Theme (wersja polska z playlistą)
 """
 
 import tkinter as tk
@@ -9,556 +8,528 @@ from tkinter import ttk, filedialog, messagebox
 import pygame
 import os
 import json
-# Na początku pliku dodaj:
-from config_manager import get_config_manager
-from resource_manager import get_resource_manager
-
 
 class MusicPlayerTest:
-    def __init__(self, parent_window):
-        self.window = parent_window
-
-        # === MENEDŻERY ===
-        self.config_mgr = get_config_manager()
-        self.resource_mgr = get_resource_manager()
-
-        # Załaduj konfigurację music playera
-        mp_config = self.config_mgr.get_music_player_config()
-
-        # Zmienne stanu
-        self.current_file = None
-        self.is_playing = False
-        self.volume = mp_config.get('last_volume', 70) / 100
-        self.default_volume = mp_config.get('last_volume', 70)
-        self.supported_formats = mp_config.get('supported_formats', ['.mp3', '.wav'])
-        self.max_file_size_mb = mp_config.get('max_file_size_mb', 500)
-
-        # NIE używamy już osobnego pliku JSON - wszystko w ConfigManager
-
-        self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
-        self.create_widgets()
-        self.load_state()
-
-    def save_state(self):
-        """Zapisuje stan przez ConfigManager"""
-        files = list(self.file_listbox.get(0, tk.END))
-        volume = self.volume_scale.get()
-
-        self.config_mgr.update_music_player_state(
-            files=files,
-            volume=volume
-        )
-
-    def load_state(self):
-        """Ładuje stan z ConfigManager"""
-        mp_config = self.config_mgr.get_music_player_config()
-
-        # Przywróć pliki
-        for file_path in mp_config.get('last_files', []):
-            if os.path.exists(file_path):
-                self.file_listbox.insert(tk.END, file_path)
-
-        # Przywróć głośność
-        volume = mp_config.get('last_volume', 70)
-        self.volume_scale.set(volume)
-        self.change_volume(volume)
-
-    def on_closing(self):
-        """Zamknięcie z zapisem i wyrejestrowaniem"""
-        self.save_state()
-        self.resource_mgr.stop_all_sounds()
-        self.resource_mgr.unregister_window(self.window)
-        self.window.destroy()
-
-
-class MusicPlayerTest:
-    """
-    Test odtwarzacza muzyki z kontrolą głośności i przewijaniem.
-    Prosty odtwarzacz do testowania jakości dźwięku słuchawek/głośników.
-    """
-
-    def __init__(self, parent_window):
-        """
-        Inicjalizacja testu odtwarzacza z obsługą błędów.
-
-        Args:
-            parent_window: Okno rodzic (tk.Toplevel) w którym test jest wyświetlany
-        """
-        self.window = parent_window
-
-        # Zmienne stanu odtwarzacza
-        self.current_file = None
-        self.is_playing = False
-        self.volume = 0.7
-        self.current_position = 0
-        self.config_file = "music_player_config.json"
-
-        # DOMYŚLNE WARTOŚCI
-        self.default_volume = 70
-
-        # Obsługiwane formaty audio
-        self.supported_formats = ['.mp3', '.wav', '.ogg', '.flac', '.m4a']
-
-        # Maksymalny rozmiar pliku (500 MB)
-        self.max_file_size_mb = 500
-
-        # Ustawienie zamykania okna
-        self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
-
-        # Budowanie interfejsu
-        try:
-            self.create_widgets()
-        except Exception as e:
-            messagebox.showerror("Błąd inicjalizacji",
-                               f"Nie można utworzyć interfejsu:\n{str(e)}")
-            raise
-
-        # Załadowanie zapisanego stanu
-        try:
-            self.load_state()
-        except Exception as e:
-            print(f"Ostrzeżenie: Nie można załadować zapisanego stanu: {e}")
-            # Kontynuuj z domyślnymi wartościami
-
-    def create_widgets(self):
-        """Tworzy wszystkie widgety z walidacją"""
-
-        # === GŁÓWNY KONTENER ===
-        main_frame = ttk.Frame(self.window, padding="10")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-
-        # === SEKCJA WYBORU PLIKÓW ===
-        file_frame = ttk.LabelFrame(main_frame, text="Wybór utworu", padding="10")
-        file_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=5)
-
-        # Listbox z plikami audio
-        self.file_listbox = tk.Listbox(file_frame, height=10, width=80)
-        self.file_listbox.grid(row=0, column=0, columnspan=2, pady=5)
-
-        # Przyciski zarządzania listą
-        ttk.Button(file_frame, text="Dodaj pliki",
-                  command=self.add_files).grid(row=1, column=0, padx=5, pady=5)
-        ttk.Button(file_frame, text="Usuń zaznaczony",
-                  command=self.remove_file).grid(row=1, column=1, padx=5, pady=5)
-
-        # === SEKCJA ODTWARZACZA ===
-        player_frame = ttk.LabelFrame(main_frame, text="Odtwarzacz", padding="15")
-        player_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=10)
-
-        # Przyciski sterowania
-        control_frame = ttk.Frame(player_frame)
-        control_frame.grid(row=0, column=0, pady=10)
-
-        ttk.Button(control_frame, text="⏪ -10s",
-                  command=self.rewind_10s, width=12).pack(side=tk.LEFT, padx=3)
-
-        self.play_button = ttk.Button(control_frame, text="▶ Play",
-                                     command=self.play_pause, width=15)
-        self.play_button.pack(side=tk.LEFT, padx=3)
-
-        ttk.Button(control_frame, text="⏹ Stop",
-                  command=self.stop, width=15).pack(side=tk.LEFT, padx=3)
-
-        ttk.Button(control_frame, text="⏩ +10s",
-                  command=self.forward_10s, width=12).pack(side=tk.LEFT, padx=3)
-
-        # Status odtwarzacza
-        self.status_label = ttk.Label(player_frame,
-                                     text="Brak załadowanego utworu",
-                                     font=('Arial', 10))
-        self.status_label.grid(row=1, column=0, pady=10)
-
-        # Kontrola głośności
-        volume_frame = ttk.LabelFrame(player_frame, text="Głośność", padding="10")
-        volume_frame.grid(row=2, column=0, pady=10, sticky=(tk.W, tk.E))
-
-        vol_control = ttk.Frame(volume_frame)
-        vol_control.pack(expand=True)
-
-        self.volume_label = ttk.Label(vol_control, text="70%", width=8,
-                                     font=('Arial', 11, 'bold'))
-        self.volume_label.pack(side=tk.RIGHT, padx=10)
-
-        self.volume_scale = ttk.Scale(vol_control, from_=0, to=100,
-                                     orient=tk.HORIZONTAL,
-                                     command=self.change_volume, length=400)
-        self.volume_scale.set(70)
-        self.volume_scale.pack(side=tk.LEFT, padx=10)
-
-        # === SEPARATOR I PRZYCISKI ===
-        ttk.Separator(main_frame, orient='horizontal').grid(row=2, column=0,
-                                                            sticky=(tk.W, tk.E),
-                                                            pady=15)
-
-        button_frame = ttk.Frame(main_frame, padding="5")
-        button_frame.grid(row=3, column=0, sticky=(tk.W, tk.E))
-
-        ttk.Button(button_frame, text="⚙ Przywróć ustawienia domyślne",
-                  command=self.restore_defaults, width=30).pack(side=tk.LEFT, padx=10)
-
-        ttk.Button(button_frame, text="✖ Zamknij test",
-                  command=self.close_test, width=25).pack(side=tk.RIGHT, padx=10)
-
-        # === KONFIGURACJA GRID ===
-        self.window.columnconfigure(0, weight=1)
-        self.window.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(0, weight=1)
-
-    def validate_audio_file(self, file_path):
-        """
-        Waliduje plik audio przed dodaniem do listy.
-
-        Args:
-            file_path: Ścieżka do pliku
-
-        Returns:
-            tuple: (bool: czy plik jest poprawny, str: komunikat błędu lub None)
-        """
-        # Sprawdź czy plik istnieje
-        if not os.path.exists(file_path):
-            return False, "Plik nie istnieje"
-
-        # Sprawdź czy to plik (nie folder)
-        if not os.path.isfile(file_path):
-            return False, "To nie jest plik"
-
-        # Sprawdź rozszerzenie
-        file_ext = os.path.splitext(file_path)[1].lower()
-        if file_ext not in self.supported_formats:
-            return False, f"Nieobsługiwany format: {file_ext}"
-
-        # Sprawdź rozmiar pliku
-        try:
-            file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
-            if file_size_mb > self.max_file_size_mb:
-                return False, f"Plik zbyt duży: {file_size_mb:.1f} MB (max {self.max_file_size_mb} MB)"
-        except OSError as e:
-            return False, f"Nie można odczytać rozmiaru pliku: {str(e)}"
-
-        return True, None
-
-    def add_files(self):
-        """Otwiera dialog wyboru plików i dodaje je do listy z walidacją"""
-        try:
-            files = filedialog.askopenfilenames(
-                title="Wybierz pliki audio",
-                filetypes=[
-                    ("Pliki audio", "*.mp3 *.wav *.ogg *.flac *.m4a"),
-                    ("Wszystkie pliki", "*.*")
-                ]
-            )
-        except Exception as e:
-            messagebox.showerror("Błąd", f"Błąd otwierania dialogu:\n{str(e)}")
-            return
-
-        if not files:
-            return
-
-        added_count = 0
-        error_count = 0
-        errors = []
-
-        for file in files:
-            # Walidacja pliku
-            is_valid, error_msg = self.validate_audio_file(file)
-
-            if is_valid:
-                # Sprawdź czy plik już nie jest na liście
-                if file not in self.file_listbox.get(0, tk.END):
-                    self.file_listbox.insert(tk.END, file)
-                    added_count += 1
-                else:
-                    errors.append(f"{os.path.basename(file)}: Już na liście")
-                    error_count += 1
-            else:
-                errors.append(f"{os.path.basename(file)}: {error_msg}")
-                error_count += 1
-
-        # Podsumowanie
-        if error_count > 0:
-            error_text = "\n".join(errors[:5])  # Pokaż max 5 błędów
-            if len(errors) > 5:
-                error_text += f"\n... i {len(errors) - 5} więcej"
-
-            messagebox.showwarning(
-                "Ostrzeżenie",
-                f"Dodano: {added_count} plików\n"
-                f"Odrzucono: {error_count} plików\n\n"
-                f"Błędy:\n{error_text}"
-            )
-        elif added_count > 0:
-            self.status_label.config(text=f"Dodano {added_count} plików")
-
-    def remove_file(self):
-        """Usuwa zaznaczony plik z listy z walidacją"""
-        try:
-            selected = self.file_listbox.curselection()
-            if not selected:
-                messagebox.showinfo("Info", "Nie wybrano pliku do usunięcia")
-                return
-
-            file_name = os.path.basename(self.file_listbox.get(selected[0]))
-
-            # Potwierdź usunięcie
-            response = messagebox.askyesno(
-                "Potwierdzenie",
-                f"Czy na pewno usunąć z listy:\n{file_name}?"
-            )
-
-            if response:
-                self.file_listbox.delete(selected)
-                self.status_label.config(text="Usunięto plik z listy")
-
-        except tk.TclError:
-            messagebox.showwarning("Uwaga", "Nie można usunąć pliku")
-        except Exception as e:
-            messagebox.showerror("Błąd", f"Błąd usuwania pliku:\n{str(e)}")
-
-    def play_pause(self):
-        """Odtwarza lub pauzuje muzykę z pełną obsługą błędów"""
-        if not self.is_playing:
-            # Tryb PLAY
-            selected = self.file_listbox.curselection()
-
-            if not selected:
-                messagebox.showinfo("Info", "Wybierz utwór z listy")
-                return
-
-            self.current_file = self.file_listbox.get(selected[0])
-
-            # Walidacja przed odtworzeniem
-            is_valid, error_msg = self.validate_audio_file(self.current_file)
-            if not is_valid:
-                messagebox.showerror("Błąd", f"Nie można odtworzyć pliku:\n{error_msg}")
-                return
-
-            try:
-                pygame.mixer.music.load(self.current_file)
-                pygame.mixer.music.set_volume(self.volume)
-                pygame.mixer.music.play()
-
-                self.is_playing = True
-                self.play_button.config(text="⏸ Pause")
-                filename = os.path.basename(self.current_file)
-                self.status_label.config(text=f"Odtwarzanie: {filename}")
-
-            except pygame.error as e:
-                self.status_label.config(text="Błąd: Nieobsługiwany format")
-                messagebox.showerror(
-                    "Błąd odtwarzania",
-                    f"Nie można odtworzyć pliku:\n\n"
-                    f"Szczegóły: {str(e)}\n\n"
-                    f"Spróbuj innego formatu (WAV, OGG)"
-                )
-            except Exception as e:
-                self.status_label.config(text=f"Błąd: {str(e)}")
-                messagebox.showerror("Błąd", f"Nieoczekiwany błąd:\n{str(e)}")
-        else:
-            # Tryb PAUSE/UNPAUSE
-            try:
-                if pygame.mixer.music.get_busy():
-                    pygame.mixer.music.pause()
-                    self.play_button.config(text="▶ Play")
-                    self.is_playing = False
-                    self.status_label.config(text="Wstrzymano")
-                else:
-                    pygame.mixer.music.unpause()
-                    self.play_button.config(text="⏸ Pause")
-                    self.is_playing = True
-                    filename = os.path.basename(self.current_file)
-                    self.status_label.config(text=f"Odtwarzanie: {filename}")
-            except Exception as e:
-                messagebox.showerror("Błąd", f"Błąd pauzowania:\n{str(e)}")
-
-    def stop(self):
-        """Zatrzymuje odtwarzanie z obsługą błędów"""
-        try:
-            pygame.mixer.music.stop()
-            self.is_playing = False
-            self.current_position = 0
-            self.play_button.config(text="▶ Play")
-            self.status_label.config(text="Zatrzymano")
-        except Exception as e:
-            messagebox.showerror("Błąd", f"Błąd zatrzymywania:\n{str(e)}")
-
-    def rewind_10s(self):
-        """Przewija utwór 10 sekund wstecz z walidacją"""
-
-        # Walidacja: Czy jest załadowany plik?
-        if not self.current_file:
-            messagebox.showinfo("Info", "Najpierw wybierz i uruchom utwór")
-            return
-
-        # Walidacja: Czy coś gra?
-        if not pygame.mixer.music.get_busy():
-            messagebox.showinfo("Info", "Najpierw uruchom odtwarzanie")
-            return
-
-        # Walidacja: Czy plik nadal istnieje?
-        if not os.path.exists(self.current_file):
-            messagebox.showerror("Błąd", "Plik został usunięty z dysku!")
-            self.stop()
-            return
-
-        try:
-            current_pos = pygame.mixer.music.get_pos()
-            new_pos = max(0, current_pos - 10000)
-
-            pygame.mixer.music.stop()
-            pygame.mixer.music.load(self.current_file)
-            pygame.mixer.music.play(start=new_pos / 1000.0)
-            pygame.mixer.music.set_volume(self.volume)
-
-            self.status_label.config(text="Przewinięto -10s")
-
-        except pygame.error as e:
-            self.status_label.config(text="Błąd przewijania")
-            messagebox.showwarning(
-                "Uwaga",
-                f"Przewijanie nie działa dla tego formatu.\n\n"
-                f"Szczegóły: {str(e)}\n\n"
-                f"Spróbuj formatu OGG lub WAV dla lepszego przewijania."
-            )
-        except Exception as e:
-            messagebox.showerror("Błąd", f"Błąd przewijania:\n{str(e)}")
-
-    def forward_10s(self):
-        """Przewija utwór 10 sekund do przodu z walidacją"""
-
-        if not self.current_file:
-            messagebox.showinfo("Info", "Najpierw wybierz i uruchom utwór")
-            return
-
-        if not pygame.mixer.music.get_busy():
-            messagebox.showinfo("Info", "Najpierw uruchom odtwarzanie")
-            return
-
-        if not os.path.exists(self.current_file):
-            messagebox.showerror("Błąd", "Plik został usunięty z dysku!")
-            self.stop()
-            return
-
-        try:
-            current_pos = pygame.mixer.music.get_pos()
-            new_pos = current_pos + 10000
-
-            pygame.mixer.music.stop()
-            pygame.mixer.music.load(self.current_file)
-            pygame.mixer.music.play(start=new_pos / 1000.0)
-            pygame.mixer.music.set_volume(self.volume)
-
-            self.status_label.config(text="Przewinięto +10s")
-
-        except pygame.error as e:
-            self.status_label.config(text="Błąd przewijania")
-            messagebox.showwarning(
-                "Uwaga",
-                f"Przewijanie nie działa dla tego formatu.\n\n"
-                f"Szczegóły: {str(e)}\n\n"
-                f"Spróbuj formatu OGG lub WAV."
-            )
-        except Exception as e:
-            messagebox.showerror("Błąd", f"Błąd przewijania:\n{str(e)}")
-
-    def change_volume(self, value):
-        """Zmienia głośność z walidacją"""
-        try:
-            volume_percent = float(value)
-
-            # Walidacja zakresu
-            volume_percent = max(0, min(100, volume_percent))
-
-            self.volume = volume_percent / 100
-            pygame.mixer.music.set_volume(self.volume)
-            self.volume_label.config(text=f"{int(volume_percent)}%")
-
-        except (ValueError, TypeError) as e:
-            print(f"Błąd zmiany głośności: {e}")
-            self.volume_scale.set(self.volume * 100)
-        except Exception as e:
-            messagebox.showerror("Błąd", f"Błąd zmiany głośności:\n{str(e)}")
-
-    def restore_defaults(self):
-        """Przywraca ustawienia domyślne z potwierdzeniem"""
-        response = messagebox.askyesno(
-            "Przywracanie ustawień",
-            "Czy na pewno chcesz przywrócić głośność do 70%?"
-        )
-
-        if response:
-            try:
-                self.volume_scale.set(self.default_volume)
-                self.change_volume(self.default_volume)
-                messagebox.showinfo("Gotowe",
-                                  "Głośność została przywrócona do wartości domyślnej!")
-            except Exception as e:
-                messagebox.showerror("Błąd", f"Błąd przywracania ustawień:\n{str(e)}")
-
-    def close_test(self):
-        """Zamyka okno testu z zapisem stanu"""
-        self.on_closing()
-
-    def save_state(self):
-        """Zapisuje stan do JSON z obsługą błędów"""
-        state = {
-            'files': list(self.file_listbox.get(0, tk.END)),
-            'volume': self.volume_scale.get()
+    def __init__(self, window):
+        self.window = window
+        self.window.configure(bg='#FFFFFF')
+
+        # === KOLORY BOSE WHITE THEME ===
+        self.colors = {
+            'bg_main': '#FFFFFF',
+            'bg_card': '#F5F5F5',
+            'text_primary': '#000000',
+            'text_secondary': '#666666',
+            'border': '#000000',
+            'button_bg': '#FFFFFF',
+            'button_fg': '#000000',
+            'button_active': '#000000',
+            'button_active_fg': '#FFFFFF',
+            'slider_bg': '#F5F5F5',
+            'slider_fg': '#000000'
         }
 
-        try:
-            with open(self.config_file, 'w', encoding='utf-8') as f:
-                json.dump(state, f, indent=2, ensure_ascii=False)
-        except IOError as e:
-            print(f"Błąd zapisu konfiguracji: {e}")
-        except Exception as e:
-            print(f"Nieoczekiwany błąd zapisu: {e}")
+        # Inicjalizacja pygame
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
 
-    def load_state(self):
-        """Ładuje zapisany stan z JSON z obsługą błędów"""
-        if not os.path.exists(self.config_file):
+        # Zmienne stanu
+        self.playlist = []  # Lista utworów
+        self.current_index = -1  # Indeks aktualnie odtwarzanego
+        self.current_file = None
+        self.is_playing = False
+        self.is_paused = False
+        self.volume = 50
+
+        # Ścieżka do pliku konfiguracyjnego
+        self.config_file = "audio_tool_config.json"
+
+        # Wczytaj playlistę z poprzedniej sesji
+        self.load_playlist_from_config()
+
+        # Tworzenie interfejsu
+        self.create_widgets()
+
+        # Automatyczne załadowanie playlisty
+        self.refresh_playlist_display()
+
+    def load_playlist_from_config(self):
+        """Wczytuje playlistę z konfiguracji"""
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    saved_playlist = config.get('music_player', {}).get('playlist', [])
+                    self.playlist = [f for f in saved_playlist if os.path.exists(f)]
+        except:
+            pass
+
+    def save_playlist_to_config(self):
+        """Zapisuje playlistę do konfiguracji"""
+        try:
+            config = {}
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+
+            if 'music_player' not in config:
+                config['music_player'] = {}
+
+            config['music_player']['playlist'] = self.playlist
+
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=4, ensure_ascii=False)
+        except Exception as e:
+            print(f"Błąd zapisu playlisty: {e}")
+
+    def create_widgets(self):
+        """Tworzenie interfejsu"""
+        main_frame = tk.Frame(self.window, bg=self.colors['bg_main'])
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+        # === NAGŁÓWEK ===
+        header_frame = tk.Frame(main_frame, bg=self.colors['bg_main'])
+        header_frame.pack(fill=tk.X, pady=(0, 12))
+
+        tk.Label(header_frame,
+                text="ODTWARZACZ MUZYKI",
+                font=('Arial', 16, 'bold'),
+                bg=self.colors['bg_main'],
+                fg=self.colors['text_primary']).pack()
+
+        tk.Label(header_frame,
+                text="Test 1",
+                font=('Arial', 8),
+                bg=self.colors['bg_main'],
+                fg=self.colors['text_secondary']).pack(pady=(2, 0))
+
+        # Separator
+        tk.Frame(main_frame, bg=self.colors['border'], height=2).pack(fill=tk.X, pady=(0, 12))
+
+        # === AKTUALNIE ODTWARZANY ===
+        info_frame = tk.Frame(main_frame, bg=self.colors['bg_card'], bd=2, relief=tk.SOLID)
+        info_frame.pack(fill=tk.X, pady=(0, 12), ipady=10)
+
+        self.file_label = tk.Label(
+            info_frame,
+            text="BRAK PLIKU",
+            font=('Arial', 9, 'bold'),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text_secondary']
+        )
+        self.file_label.pack()
+
+        # === PLAYLISTA ===
+        playlist_frame = tk.LabelFrame(
+            main_frame,
+            text="PLAYLISTA",
+            font=('Arial', 8, 'bold'),
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_primary'],
+            bd=2,
+            relief=tk.SOLID
+        )
+        playlist_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 12))
+
+        # Listbox z utworami
+        list_container = tk.Frame(playlist_frame, bg=self.colors['bg_main'])
+        list_container.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
+
+        scrollbar = tk.Scrollbar(list_container)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.playlist_listbox = tk.Listbox(
+            list_container,
+            font=('Arial', 9),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text_primary'],
+            selectbackground=self.colors['text_primary'],
+            selectforeground=self.colors['bg_main'],
+            bd=0,
+            highlightthickness=0,
+            yscrollcommand=scrollbar.set,
+            height=6
+        )
+        self.playlist_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.playlist_listbox.yview)
+
+        # Single click = zaznacz (nie odtwarzaj)
+        # Brak bindu - domyślne zachowanie Listbox
+
+        # Przyciski playlisty
+        playlist_btn_frame = tk.Frame(playlist_frame, bg=self.colors['bg_main'])
+        playlist_btn_frame.pack(fill=tk.X, padx=8, pady=(0, 8))
+
+        tk.Button(playlist_btn_frame,
+                 text="+ DODAJ PLIKI",
+                 command=self.add_files,
+                 bg=self.colors['button_bg'],
+                 fg=self.colors['button_fg'],
+                 activebackground=self.colors['button_active'],
+                 activeforeground=self.colors['button_active_fg'],
+                 bd=2,
+                 relief=tk.SOLID,
+                 font=('Arial', 8),
+                 width=14).pack(side=tk.LEFT, padx=2)
+
+        tk.Button(playlist_btn_frame,
+                 text="✖ USUŃ",
+                 command=self.remove_selected,
+                 bg=self.colors['button_bg'],
+                 fg=self.colors['button_fg'],
+                 activebackground=self.colors['button_active'],
+                 activeforeground=self.colors['button_active_fg'],
+                 bd=2,
+                 relief=tk.SOLID,
+                 font=('Arial', 8),
+                 width=10).pack(side=tk.LEFT, padx=2)
+
+        tk.Button(playlist_btn_frame,
+                 text="🗑 WYCZYŚĆ",
+                 command=self.clear_playlist,
+                 bg=self.colors['button_bg'],
+                 fg=self.colors['button_fg'],
+                 activebackground=self.colors['button_active'],
+                 activeforeground=self.colors['button_active_fg'],
+                 bd=2,
+                 relief=tk.SOLID,
+                 font=('Arial', 8),
+                 width=10).pack(side=tk.LEFT, padx=2)
+
+        # === STEROWANIE ===
+        controls_frame = tk.Frame(main_frame, bg=self.colors['bg_main'])
+        controls_frame.pack(pady=10)
+
+        # Przewijanie
+        seek_frame = tk.Frame(controls_frame, bg=self.colors['bg_main'])
+        seek_frame.pack(pady=(0, 6))
+
+        self.rewind_btn = tk.Button(
+            seek_frame,
+            text="⏪ -10s",
+            font=('Arial', 8, 'bold'),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text_secondary'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2,
+            relief=tk.SOLID,
+            width=9,
+            state=tk.DISABLED,
+            command=self.rewind_10s
+        )
+        self.rewind_btn.pack(side=tk.LEFT, padx=3)
+
+        self.forward_btn = tk.Button(
+            seek_frame,
+            text="⏩ +10s",
+            font=('Arial', 8, 'bold'),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text_secondary'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2,
+            relief=tk.SOLID,
+            width=9,
+            state=tk.DISABLED,
+            command=self.forward_10s
+        )
+        self.forward_btn.pack(side=tk.LEFT, padx=3)
+
+        # Play/Pause/Stop
+        playback_frame = tk.Frame(controls_frame, bg=self.colors['bg_main'])
+        playback_frame.pack()
+
+        self.play_btn = tk.Button(
+            playback_frame,
+            text="▶ PLAY",
+            font=('Arial', 8, 'bold'),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text_secondary'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2,
+            relief=tk.SOLID,
+            width=9,
+            state=tk.DISABLED,
+            command=self.play_music
+        )
+        self.play_btn.pack(side=tk.LEFT, padx=3)
+
+        self.pause_btn = tk.Button(
+            playback_frame,
+            text="⏸ PAUZA",
+            font=('Arial', 8, 'bold'),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text_secondary'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2,
+            relief=tk.SOLID,
+            width=9,
+            state=tk.DISABLED,
+            command=self.pause_music
+        )
+        self.pause_btn.pack(side=tk.LEFT, padx=3)
+
+        self.stop_btn = tk.Button(
+            playback_frame,
+            text="⏹ STOP",
+            font=('Arial', 8, 'bold'),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text_secondary'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2,
+            relief=tk.SOLID,
+            width=9,
+            state=tk.DISABLED,
+            command=self.stop_music
+        )
+        self.stop_btn.pack(side=tk.LEFT, padx=3)
+
+        # === GŁOŚNOŚĆ (MAX 82%) ===
+        volume_frame = tk.LabelFrame(
+            main_frame,
+            text="GŁOŚNOŚĆ",
+            font=('Arial', 8, 'bold'),
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_primary'],
+            bd=2,
+            relief=tk.SOLID
+        )
+        volume_frame.pack(fill=tk.X, pady=(10, 0))
+
+        vol_container = tk.Frame(volume_frame, bg=self.colors['bg_main'])
+        vol_container.pack(fill=tk.X, padx=8, pady=6)
+
+        tk.Label(vol_container,
+                text="0%",
+                bg=self.colors['bg_main'],
+                fg=self.colors['text_secondary'],
+                font=('Arial', 7)).pack(side=tk.LEFT)
+
+        self.volume_slider = tk.Scale(
+            vol_container,
+            from_=0,
+            to=82,
+            orient=tk.HORIZONTAL,
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_primary'],
+            troughcolor=self.colors['slider_bg'],
+            highlightthickness=0,
+            command=self.change_volume,
+            showvalue=0,
+            bd=0,
+            relief=tk.FLAT
+        )
+        self.volume_slider.set(self.volume)
+        self.volume_slider.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=6)
+
+        tk.Label(vol_container,
+                text="82%",
+                bg=self.colors['bg_main'],
+                fg=self.colors['text_secondary'],
+                font=('Arial', 7)).pack(side=tk.RIGHT)
+
+        self.volume_label = tk.Label(
+            volume_frame,
+            text=f"POZIOM: {self.volume}%",
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_secondary'],
+            font=('Arial', 8)
+        )
+        self.volume_label.pack(pady=(0, 6))
+
+        # === POWRÓT ===
+        tk.Button(main_frame,
+                 text="← POWRÓT DO MENU",
+                 command=self.close_window,
+                 bg=self.colors['bg_main'],
+                 fg=self.colors['text_secondary'],
+                 activebackground=self.colors['button_active'],
+                 activeforeground=self.colors['button_active_fg'],
+                 bd=2,
+                 relief=tk.SOLID,
+                 font=('Arial', 8),
+                 width=20).pack(pady=(12, 0))
+
+    def add_files(self):
+        """Dodaje pliki do playlisty"""
+        file_paths = filedialog.askopenfilenames(
+            title="Wybierz pliki audio",
+            filetypes=[
+                ("Pliki audio", "*.mp3 *.wav *.ogg"),
+                ("Pliki MP3", "*.mp3"),
+                ("Pliki WAV", "*.wav"),
+                ("Pliki OGG", "*.ogg"),
+                ("Wszystkie pliki", "*.*")
+            ]
+        )
+
+        if file_paths:
+            for path in file_paths:
+                if path not in self.playlist:
+                    self.playlist.append(path)
+
+            self.refresh_playlist_display()
+            self.save_playlist_to_config()
+
+            # FIX: Przywróć focus na to okno
+            self.window.lift()
+            self.window.focus_force()
+
+    def remove_selected(self):
+        """Usuwa zaznaczony utwór"""
+        selection = self.playlist_listbox.curselection()
+        if selection:
+            index = selection[0]
+            del self.playlist[index]
+            self.refresh_playlist_display()
+            self.save_playlist_to_config()
+
+            # Jeśli usunięto aktualnie odtwarzany
+            if index == self.current_index:
+                self.stop_music()
+                self.current_index = -1
+
+    def clear_playlist(self):
+        """Czyści całą playlistę"""
+        if messagebox.askyesno("Potwierdzenie", "Wyczyścić całą playlistę?"):
+            self.stop_music()
+            self.playlist = []
+            self.current_index = -1
+            self.refresh_playlist_display()
+            self.save_playlist_to_config()
+
+    def refresh_playlist_display(self):
+        """Odświeża wyświetlanie playlisty"""
+        self.playlist_listbox.delete(0, tk.END)
+        for i, filepath in enumerate(self.playlist):
+            filename = os.path.basename(filepath)
+            prefix = "▶ " if i == self.current_index else "  "
+            self.playlist_listbox.insert(tk.END, f"{prefix}{filename}")
+
+        # Aktywuj/dezaktywuj przycisk Play
+        if self.playlist:
+            self.play_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+        else:
+            self.play_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+
+    def load_and_play(self, filepath):
+        """Ładuje i odtwarza plik"""
+        try:
+            pygame.mixer.music.load(filepath)
+            self.current_file = filepath
+            filename = os.path.basename(filepath)
+
+            self.file_label.config(
+                text=filename.upper(),
+                fg=self.colors['text_primary']
+            )
+
+            pygame.mixer.music.play()
+            self.is_playing = True
+            self.is_paused = False
+
+            self.refresh_playlist_display()
+            self.update_buttons_playing()
+
+        except Exception as e:
+            messagebox.showerror("Błąd", f"Nie można odtworzyć:\n{str(e)}")
+
+    def play_music(self):
+        """Odtwarza muzykę"""
+        if not self.playlist:
+            messagebox.showwarning("Uwaga", "Playlista jest pusta")
             return
 
+        # Sprawdź czy coś jest zaznaczone
+        selection = self.playlist_listbox.curselection()
+        if selection:
+            self.current_index = selection[0]
+        elif self.current_index == -1:
+            # Jeśli nic nie zaznaczone, odtwórz pierwszy
+            self.current_index = 0
+
+        if self.is_paused:
+            pygame.mixer.music.unpause()
+            self.is_paused = False
+            self.is_playing = True
+        else:
+            self.load_and_play(self.playlist[self.current_index])
+
+        self.update_buttons_playing()
+
+    def pause_music(self):
+        """Pauzuje"""
+        if self.is_playing and not self.is_paused:
+            pygame.mixer.music.pause()
+            self.is_paused = True
+            self.update_buttons_paused()
+
+    def stop_music(self):
+        """Zatrzymuje"""
+        pygame.mixer.music.stop()
+        self.is_playing = False
+        self.is_paused = False
+        self.update_buttons_stopped()
+
+    def rewind_10s(self):
+        """Cofa o 10s"""
+        if self.is_playing:
+            try:
+                pos = pygame.mixer.music.get_pos() / 1000.0
+                new_pos = max(0, pos - 10)
+                pygame.mixer.music.play(start=new_pos)
+            except:
+                pass
+
+    def forward_10s(self):
+        """Przewija o 10s"""
+        if self.is_playing:
+            try:
+                pos = pygame.mixer.music.get_pos() / 1000.0
+                pygame.mixer.music.play(start=pos + 10)
+            except:
+                pass
+
+    def change_volume(self, value):
+        """Zmienia głośność"""
+        self.volume = int(float(value))
+        pygame.mixer.music.set_volume(self.volume / 82.0)
+        self.volume_label.config(text=f"POZIOM: {self.volume}%")
+
+    def update_buttons_playing(self):
+        """Aktualizuje przyciski - stan playing"""
+        self.play_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.pause_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+        self.stop_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+        self.rewind_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+        self.forward_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+
+    def update_buttons_paused(self):
+        """Aktualizuje przyciski - stan paused"""
+        self.play_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+        self.pause_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+
+    def update_buttons_stopped(self):
+        """Aktualizuje przyciski - stan stopped"""
+        self.play_btn.config(state=tk.NORMAL if self.playlist else tk.DISABLED,
+                            bg=self.colors['button_bg'] if self.playlist else self.colors['bg_card'],
+                            fg=self.colors['button_fg'] if self.playlist else self.colors['text_secondary'])
+        self.pause_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.stop_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.rewind_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.forward_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+
+    def close_window(self):
+        """Zamyka okno"""
         try:
-            with open(self.config_file, 'r', encoding='utf-8') as f:
-                state = json.load(f)
-
-            # Przywróć listę plików (tylko te które istnieją)
-            files_loaded = 0
-            for file_path in state.get('files', []):
-                is_valid, _ = self.validate_audio_file(file_path)
-                if is_valid:
-                    self.file_listbox.insert(tk.END, file_path)
-                    files_loaded += 1
-
-            if files_loaded > 0:
-                self.status_label.config(text=f"Załadowano {files_loaded} plików z poprzedniej sesji")
-
-            # Przywróć głośność
-            volume = state.get('volume', self.default_volume)
-            volume = max(0, min(100, volume))  # Walidacja
-            self.volume_scale.set(volume)
-            self.change_volume(volume)
-
-        except json.JSONDecodeError as e:
-            print(f"Błąd parsowania JSON: {e}")
-        except IOError as e:
-            print(f"Błąd odczytu pliku konfiguracji: {e}")
-        except Exception as e:
-            print(f"Nieoczekiwany błąd ładowania stanu: {e}")
-
-    def on_closing(self):
-        """Obsługa zamykania okna testu z czyszczeniem zasobów"""
-        try:
-            self.save_state()
-        except Exception as e:
-            print(f"Błąd zapisu stanu przy zamykaniu: {e}")
-
-        try:
-            pygame.mixer.music.stop()
-        except Exception as e:
-            print(f"Błąd zatrzymywania muzyki: {e}")
-
-        try:
+            if self.is_playing:
+                pygame.mixer.music.stop()
+            self.save_playlist_to_config()
             self.window.destroy()
         except Exception as e:
-            print(f"Błąd zamykania okna: {e}")
+            print(f"Błąd zamykania: {e}")
+            self.window.destroy()

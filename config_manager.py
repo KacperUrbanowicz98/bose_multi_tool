@@ -154,6 +154,15 @@ class ConfigManager:
             print(f"[ConfigManager] Nieoczekiwany błąd zapisu: {e}")
             return False
 
+    def reload_config(self):
+        """Przeładowuje konfigurację z pliku"""
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    self.config = json.load(f)
+        except:
+            pass
+
     def _merge_configs(self, default, loaded):
         """
         Łączy domyślną konfigurację z załadowaną.

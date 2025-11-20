@@ -2,9 +2,9 @@
     "app": {
         "version": "1.0.0",
         "first_run": false,
-        "last_used": "2025-11-12T15:44:21.843706",
+        "last_used": "2025-11-20T13:07:01.522494",
         "window_geometry": {
-            "main": "550x600+1185+280",
+            "main": "480x649+156+156",
             "music_player": "700x600",
             "tone_generator": "600x700"
         }
@@ -28,7 +28,12 @@
             ".flac",
             ".m4a"
         ],
-        "max_file_size_mb": 500
+        "max_file_size_mb": 500,
+        "playlist": [
+            "C:/Users/kurba/Downloads/Aleś-mu-zajebał__-_mp3cut.net_-_1_.mp3",
+            "C:/Users/kurba/Downloads/DSWeHRIILZ4.mp3",
+            "C:/Users/kurba/Downloads/snaptik_7525855298637090070_v2 (mp3cut.net).mp3"
+        ]
     },
     "tone_generator": {
         "last_frequency": 440.0,
@@ -40,8 +45,8 @@
         ]
     },
     "paths": {
-        "last_open_directory": "C:\\Users\\kacper.urbanowicz",
-        "default_music_folder": "C:\\Users\\kacper.urbanowicz/Music",
+        "last_open_directory": "C:\\Users\\kurba",
+        "default_music_folder": "C:\\Users\\kurba/Music",
         "logs_directory": "./logs"
     },
     "ui": {
