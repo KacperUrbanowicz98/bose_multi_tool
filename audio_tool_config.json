@@ -1,0 +1,51 @@
+{
+    "app": {
+        "version": "1.0.0",
+        "first_run": false,
+        "window_geometry": {
+            "main": "550x700+234+234",
+            "music_player": "650x580",
+            "tone_generator": "580x680"
+        }
+    },
+    "security": {
+        "engineering_password": "bose2024"
+    },
+    "operators": {
+        "hrid_list": [
+            "OP001",
+            "OP002",
+            "OP003",
+            "ADMIN",
+            "TEST"
+        ]
+    },
+    "audio": {
+        "sample_rate": 44100,
+        "channels": 2,
+        "buffer_size": 512
+    },
+    "music_player": {
+        "default_volume": 50,
+        "max_volume": 82,
+        "playlist": [
+            "C:/Users/kurba/Downloads/NO BATIDÃO - ZXKAI x NAGI [𝘽𝙍𝘼𝙕𝙄𝙇𝙄𝘼𝙉 𝙁𝙐𝙉𝙆].mp3"
+        ],
+        "equalizer": {
+            "60Hz": 0,
+            "250Hz": 0,
+            "1kHz": 0,
+            "4kHz": 0,
+            "16kHz": 0
+        }
+    },
+    "tone_generator": {
+        "default_frequency": 1000,
+        "default_volume": 50,
+        "default_wave": "sine"
+    },
+    "ui": {
+        "theme": "white",
+        "confirm_exit": true
+    }
+}

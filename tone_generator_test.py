@@ -40,6 +40,9 @@ class ToneGeneratorTest:
 
         self.create_widgets()
 
+        # Zatrzymaj dźwięk przy zamykaniu okna
+        parent_frame.winfo_toplevel().protocol("WM_DELETE_WINDOW", self.cleanup_and_return)
+
     def create_widgets(self):
         """Tworzenie interfejsu - kompaktowy"""
         main_frame = tk.Frame(self.parent_frame, bg=self.colors['bg_main'])
