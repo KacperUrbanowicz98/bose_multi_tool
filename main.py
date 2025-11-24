@@ -14,6 +14,8 @@ import json
 from resource_manager import get_resource_manager
 from config_manager import get_config_manager
 from login_screen import LoginScreen
+from stereo_test import StereoTest
+
 
 
 class AudioMultiTool:
@@ -687,7 +689,7 @@ class AudioMultiTool:
         tests = [
             ("TEST 1", "Odtwarzacz Muzyki + EQ", self.open_music_player_test, 'normal'),
             ("TEST 2", "Generator Częstotliwości", self.open_tone_generator_test, 'normal'),
-            ("TEST 3", "Test Stereo", self.show_under_construction, 'disabled'),
+            ('TEST 3', 'Test Stereo', self.open_stereo_test, 'normal'),
             ("TEST 4", "Przejazd Częstotliwości", self.show_under_construction, 'disabled'),
             ("TEST 5", "Szum Różowy/Biały", self.show_under_construction, 'disabled')
         ]
@@ -786,7 +788,7 @@ class AudioMultiTool:
             except:
                 pass
 
-        geometry = self.config_mgr.get('app.window_geometry.music_player', '650x580')
+        geometry = self.config_mgr.get('app.window_geometry.music_player', '650x620')
 
         try:
             test_window = tk.Toplevel(self.root)
@@ -840,6 +842,45 @@ class AudioMultiTool:
             test = ToneGeneratorTest(test_frame, close_test)
 
             self.resource_mgr.register_window(test_window, 'tone_generator')
+            self.current_test_window = test_window
+
+        except Exception as e:
+            messagebox.showerror("Błąd", f"Nie można załadować testu:\n{str(e)}")
+            try:
+                test_window.destroy()
+            except:
+                pass
+
+    def open_stereo_test(self):
+        """Otwiera Test 3 - Stereo"""
+        if self.current_test_window is not None:
+            try:
+                self.resource_mgr.unregister_window(self.current_test_window)
+                self.current_test_window.destroy()
+            except:
+                pass
+
+        geometry = self.config_mgr.get('app.window_geometry.stereotest', '500x750')
+
+        try:
+            test_window = tk.Toplevel(self.root)
+            test_window.title("Test 3: Stereo (Lewa/Prawa)")
+            test_window.geometry(geometry)
+            test_window.configure(bg=self.COLORS['bg_main'])
+
+            test = StereoTest(test_window)
+
+            def close_test():
+                try:
+                    test.cleanup()
+                    self.resource_mgr.unregister_window(test_window)
+                    test_window.destroy()
+                    self.current_test_window = None
+                except:
+                    pass
+
+            test_window.protocol("WM_DELETE_WINDOW", close_test)
+            self.resource_mgr.register_window(test_window, 'stereotest')
             self.current_test_window = test_window
 
         except Exception as e:

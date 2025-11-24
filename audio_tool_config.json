@@ -3,9 +3,10 @@
         "version": "1.0.0",
         "first_run": false,
         "window_geometry": {
-            "main": "550x700+234+234",
-            "music_player": "650x580",
-            "tone_generator": "580x680"
+            "main": "550x700+52+52",
+            "music_player": "650x620",
+            "tone_generator": "580x680",
+            "stereotest": "580x750"
         }
     },
     "security": {
