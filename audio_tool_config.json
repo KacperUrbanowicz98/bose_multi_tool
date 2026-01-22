@@ -3,8 +3,8 @@
         "version": "1.0.0",
         "first_run": false,
         "window_geometry": {
-            "main": "550x700+52+52",
-            "music_player": "650x620",
+            "main": "550x700+234+234",
+            "music_player": "650x720",
             "tone_generator": "580x680",
             "stereotest": "580x750"
         }
@@ -30,7 +30,8 @@
         "default_volume": 50,
         "max_volume": 82,
         "playlist": [
-            "C:/Users/kurba/Downloads/NO BATIDÃO - ZXKAI x NAGI [𝘽𝙍𝘼𝙕𝙄𝙇𝙄𝘼𝙉 𝙁𝙐𝙉𝙆].mp3"
+            "C:/Users/kurba/Downloads/NO BATIDÃO - ZXKAI x NAGI [𝘽𝙍𝘼𝙕𝙄𝙇𝙄𝘼𝙉 𝙁𝙐𝙉𝙆].mp3",
+            "C:/Users/kurba/Downloads/Malik Montana - Baciata Official Music Video (videoo (mp3cut.net).mp3"
         ],
         "equalizer": {
             "60Hz": 0,

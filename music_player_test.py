@@ -47,6 +47,13 @@ class MusicPlayerTest:
         self.start_time = 0  # Czas startu utworu
         self.pause_pos = 0   # Pozycja przy pauzowaniu
 
+        # Zmienne auto testu
+        self.auto_test_running = False
+        self.auto_test_job = None
+        self.auto_test_step = 0
+        self.auto_test_volumes = list(range(10, 83, 10))  # [10, 20, 30, 40, 50, 60, 70, 80]
+        self.auto_test_duration = 5000  # 5 sekund w ms
+
         # Ścieżka do pliku konfiguracyjnego
         self.config_file = "audio_tool_config.json"
 
@@ -192,41 +199,118 @@ class MusicPlayerTest:
         playlist_btn_frame = tk.Frame(playlist_frame, bg=self.colors['bg_main'])
         playlist_btn_frame.pack(fill=tk.X, padx=8, pady=(0, 8))
 
-        tk.Button(playlist_btn_frame,
-                 text="+ DODAJ PLIKI",
-                 command=self.add_files,
-                 bg=self.colors['button_bg'],
-                 fg=self.colors['button_fg'],
-                 activebackground=self.colors['button_active'],
-                 activeforeground=self.colors['button_active_fg'],
-                 bd=2,
-                 relief=tk.SOLID,
-                 font=('Arial', 8),
-                 width=14).pack(side=tk.LEFT, padx=2)
+        self.add_files_btn = tk.Button(
+            playlist_btn_frame,
+            text="+ DODAJ PLIKI",
+            command=self.add_files,
+            bg=self.colors['button_bg'],
+            fg=self.colors['button_fg'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2,
+            relief=tk.SOLID,
+            font=('Arial', 8),
+            width=14
+        )
+        self.add_files_btn.pack(side=tk.LEFT, padx=2)
 
-        tk.Button(playlist_btn_frame,
-                 text="✖ USUŃ",
-                 command=self.remove_selected,
-                 bg=self.colors['button_bg'],
-                 fg=self.colors['button_fg'],
-                 activebackground=self.colors['button_active'],
-                 activeforeground=self.colors['button_active_fg'],
-                 bd=2,
-                 relief=tk.SOLID,
-                 font=('Arial', 8),
-                 width=10).pack(side=tk.LEFT, padx=2)
+        self.remove_btn = tk.Button(
+            playlist_btn_frame,
+            text="✖ USUŃ",
+            command=self.remove_selected,
+            bg=self.colors['button_bg'],
+            fg=self.colors['button_fg'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2,
+            relief=tk.SOLID,
+            font=('Arial', 8),
+            width=10
+        )
+        self.remove_btn.pack(side=tk.LEFT, padx=2)
 
-        tk.Button(playlist_btn_frame,
-                 text="🗑 WYCZYŚĆ",
-                 command=self.clear_playlist,
-                 bg=self.colors['button_bg'],
-                 fg=self.colors['button_fg'],
-                 activebackground=self.colors['button_active'],
-                 activeforeground=self.colors['button_active_fg'],
-                 bd=2,
-                 relief=tk.SOLID,
-                 font=('Arial', 8),
-                 width=10).pack(side=tk.LEFT, padx=2)
+        self.clear_btn = tk.Button(
+            playlist_btn_frame,
+            text="🗑 WYCZYŚĆ",
+            command=self.clear_playlist,
+            bg=self.colors['button_bg'],
+            fg=self.colors['button_fg'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2,
+            relief=tk.SOLID,
+            font=('Arial', 8),
+            width=12
+        )
+        self.clear_btn.pack(side=tk.LEFT, padx=2)
+
+        # === AUTO TEST ===
+        auto_test_frame = tk.LabelFrame(
+            main_frame,
+            text="AUTOMATYCZNY TEST",
+            font=('Arial', 8, 'bold'),
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_primary'],
+            bd=2,
+            relief=tk.SOLID
+        )
+        auto_test_frame.pack(fill=tk.X, pady=(0, 12))
+
+        auto_container = tk.Frame(auto_test_frame, bg=self.colors['bg_main'])
+        auto_container.pack(fill=tk.X, padx=8, pady=8)
+
+        tk.Label(
+            auto_container,
+            text="Test głośności: 10% → 82% (5s na poziom)",
+            font=('Arial', 8),
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_secondary']
+        ).pack(pady=(0, 5))
+
+        auto_buttons = tk.Frame(auto_container, bg=self.colors['bg_main'])
+        auto_buttons.pack()
+
+        self.auto_start_btn = tk.Button(
+            auto_buttons,
+            text="▶ START AUTO TEST",
+            font=('Arial', 8, 'bold'),
+            bg=self.colors['button_bg'],
+            fg=self.colors['button_fg'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2,
+            relief=tk.SOLID,
+            width=18,
+            state=tk.DISABLED,
+            command=self.start_auto_test
+        )
+        self.auto_start_btn.pack(side=tk.LEFT, padx=3)
+
+        self.auto_stop_btn = tk.Button(
+            auto_buttons,
+            text="⏹ STOP AUTO TEST",
+            font=('Arial', 8, 'bold'),
+            bg=self.colors['button_bg'],
+            fg=self.colors['button_fg'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2,
+            relief=tk.SOLID,
+            width=18,
+            state=tk.DISABLED,
+            command=self.stop_auto_test
+        )
+        self.auto_stop_btn.pack(side=tk.LEFT, padx=3)
+
+        # Status auto testu
+        self.auto_status_label = tk.Label(
+            auto_container,
+            text="",
+            font=('Arial', 8),
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_secondary']
+        )
+        self.auto_status_label.pack(pady=(5, 0))
 
         # === STEROWANIE ===
         controls_frame = tk.Frame(main_frame, bg=self.colors['bg_main'])
@@ -267,6 +351,7 @@ class MusicPlayerTest:
             command=self.forward_10s
         )
         self.forward_btn.pack(side=tk.LEFT, padx=3)
+
 
         # Play/Pause/Stop
         playback_frame = tk.Frame(controls_frame, bg=self.colors['bg_main'])
@@ -445,6 +530,20 @@ class MusicPlayerTest:
             self.play_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
         else:
             self.play_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+    def refresh_playlist_display(self):
+        self.playlist_listbox.delete(0, tk.END)
+        for i, filepath in enumerate(self.playlist):
+            filename = os.path.basename(filepath)
+            prefix = "▶ " if i == self.current_index else "  "
+            self.playlist_listbox.insert(tk.END, f"{prefix}{filename}")
+
+        if self.playlist:
+            self.play_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+            self.auto_start_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])  # <-- DODAJ
+        else:
+            self.play_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+            self.auto_start_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])  # <-- DODAJ
+
 
     def load_and_play(self, filepath):
         """Ładuje i odtwarza plik"""
@@ -676,9 +775,141 @@ class MusicPlayerTest:
         self.rewind_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
         self.forward_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
 
+    def start_auto_test(self):
+        """Uruchamia automatyczny test głośności"""
+        if not self.playlist:
+            messagebox.showwarning("Uwaga", "Playlista jest pusta")
+            return
+
+        # Zatrzymaj muzykę jeśli gra
+        if self.is_playing:
+            self.stop_music()
+
+        # Sprawdź czy użytkownik wybrał utwór z playlisty
+        selection = self.playlist_listbox.curselection()
+        if selection:
+            self.current_index = selection[0]
+        elif self.current_index == -1:
+            # Jeśli nic nie wybrano, ustaw pierwszy utwór
+            self.current_index = 0
+
+        # Zablokuj przyciski
+        # Zablokuj przyciski
+        self.auto_test_running = True
+        self.auto_test_step = 0
+
+        # Przyciski odtwarzania
+        self.play_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.pause_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.stop_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.rewind_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.forward_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+
+        # Suwak głośności
+        self.volume_slider.config(state=tk.DISABLED)
+
+        # Przyciski playlisty - zablokuj interakcję
+        self.playlist_listbox.config(state=tk.DISABLED)
+        # Przyciski playlisty
+        self.add_files_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.remove_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.clear_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+
+
+        # Przyciski auto testu
+        self.auto_start_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.auto_stop_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+
+        # Start pierwszego kroku
+        self.run_auto_test_step()
+
+    def run_auto_test_step(self):
+        """Wykonuje jeden krok auto testu"""
+        if not self.auto_test_running:
+            return
+
+        if self.auto_test_step >= len(self.auto_test_volumes):
+            # Test zakończony
+            self.stop_auto_test()
+            messagebox.showinfo("Auto Test", "Test automatyczny zakończony pomyślnie!")
+            return
+
+        # Pobierz poziom głośności dla tego kroku
+        volume = self.auto_test_volumes[self.auto_test_step]
+
+        # Ustaw głośność
+        self.volume = volume
+
+        # Tymczasowo odblokuj suwak, ustaw wartość, zablokuj z powrotem
+        self.volume_slider.config(state=tk.NORMAL)
+        self.volume_slider.set(volume)
+        self.volume_slider.config(state=tk.DISABLED)
+
+        pygame.mixer.music.set_volume(volume / 82.0)
+        self.volume_label.config(text=f"POZIOM: {volume}%")
+
+        # Aktualizuj status
+        total_steps = len(self.auto_test_volumes)
+        self.auto_status_label.config(
+            text=f"Krok {self.auto_test_step + 1}/{total_steps} - Głośność: {volume}%",
+            fg=self.colors['text_primary']
+        )
+
+        # Jeśli pierwszy krok - załaduj i odtwórz
+        if self.auto_test_step == 0:
+            self.load_and_play(self.playlist[self.current_index])
+
+        # DODAJ TU - ponownie zablokuj przyciski przewijania (bo load_and_play je odblokowało)
+        if self.auto_test_running:
+            self.rewind_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+            self.forward_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+
+        # Zaplanuj następny krok za 5 sekund
+        self.auto_test_step += 1
+        self.auto_test_job = self.window.after(self.auto_test_duration, self.run_auto_test_step)
+
+    def stop_auto_test(self):
+        """Zatrzymuje automatyczny test"""
+        self.auto_test_running = False
+        self.auto_test_step = 0
+
+        # Anuluj zaplanowane kroki
+        if self.auto_test_job:
+            self.window.after_cancel(self.auto_test_job)
+            self.auto_test_job = None
+
+        # Zatrzymaj muzykę
+        if self.is_playing:
+            self.stop_music()
+
+        # Odblokuj przyciski
+        self.auto_start_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+        self.auto_stop_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        # Odblokuj przyciski playlisty
+        self.add_files_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+        self.remove_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+        self.clear_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+
+
+        # Odblokuj suwak głośności
+        self.volume_slider.config(state=tk.NORMAL)
+
+        # Odblokuj listę playlisty
+        self.playlist_listbox.config(state=tk.NORMAL)
+
+        # Przywróć normalne przyciski
+        self.update_buttons_stopped()
+
+        # Wyczyść status
+        self.auto_status_label.config(text="")
+
     def close_window(self):
         """Zamyka okno"""
         try:
+            # Zatrzym auto test jeśli działa
+            if self.auto_test_running:
+                self.stop_auto_test()
+
             # Anuluj aktualizację
             if self.update_job:
                 self.window.after_cancel(self.update_job)
@@ -694,3 +925,4 @@ class MusicPlayerTest:
         except Exception as e:
             print(f"Błąd zamykania: {e}")
             self.window.destroy()
+

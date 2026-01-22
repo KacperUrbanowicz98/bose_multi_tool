@@ -788,7 +788,7 @@ class AudioMultiTool:
             except:
                 pass
 
-        geometry = self.config_mgr.get('app.window_geometry.music_player', '650x620')
+        geometry = self.config_mgr.get('app.window_geometry.music_player', '650x720')
 
         try:
             test_window = tk.Toplevel(self.root)
