@@ -10,10 +10,17 @@ import os
 import json
 import time
 from mutagen import File
+from test_reporter import get_test_reporter
+from datetime import datetime
+
 
 class MusicPlayerTest:
-    def __init__(self, window):
+    def __init__(self, window, operator_hrid="UNKNOWN", device_serial=None):
         self.window = window
+        self.operator_hrid = operator_hrid
+        self.device_serial = device_serial
+
+
         self.window.configure(bg='#FFFFFF')
 
         # === KOLORY BOSE WHITE THEME ===
@@ -51,8 +58,11 @@ class MusicPlayerTest:
         self.auto_test_running = False
         self.auto_test_job = None
         self.auto_test_step = 0
-        self.auto_test_volumes = list(range(10, 83, 10))  # [10, 20, 30, 40, 50, 60, 70, 80]
-        self.auto_test_duration = 5000  # 5 sekund w ms
+        self.auto_test_volumes = list(range(10, 83, 10))
+        self.auto_test_duration = 5000
+        self.auto_test_start_time = None
+        # USUŃ: self.operator_hrid = "UNKNOWN"
+        # USUŃ: self.device_serial = None
 
         # Ścieżka do pliku konfiguracyjnego
         self.config_file = "audio_tool_config.json"
@@ -794,9 +804,10 @@ class MusicPlayerTest:
             self.current_index = 0
 
         # Zablokuj przyciski
-        # Zablokuj przyciski
+
         self.auto_test_running = True
         self.auto_test_step = 0
+        self.auto_test_start_time = datetime.now()  # <-- DODAJ
 
         # Przyciski odtwarzania
         self.play_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
@@ -829,9 +840,10 @@ class MusicPlayerTest:
             return
 
         if self.auto_test_step >= len(self.auto_test_volumes):
-            # Test zakończony
-            self.stop_auto_test()
-            messagebox.showinfo("Auto Test", "Test automatyczny zakończony pomyślnie!")
+            # Test zakończony - zapisz raport
+            self.save_test_report(status="PASS", interrupted=False)
+            self.stop_auto_test(save_report=False)  # <-- DODAJ save_report=False
+            messagebox.showinfo("Auto Test", "Test automatyczny zakończony pomyślnie!\n\nRaport został zapisany.")
             return
 
         # Pobierz poziom głośności dla tego kroku
@@ -868,10 +880,15 @@ class MusicPlayerTest:
         self.auto_test_step += 1
         self.auto_test_job = self.window.after(self.auto_test_duration, self.run_auto_test_step)
 
-    def stop_auto_test(self):
+    def stop_auto_test(self, save_report=True):
         """Zatrzymuje automatyczny test"""
+        # Jeśli test był uruchomiony i został przerwany
+        if self.auto_test_running and self.auto_test_step > 0 and save_report:
+            # Sprawdź czy test nie zakończył się normalnie
+            if self.auto_test_step < len(self.auto_test_volumes):
+                self.save_test_report(status="INTERRUPTED", interrupted=True)
+
         self.auto_test_running = False
-        self.auto_test_step = 0
 
         # Anuluj zaplanowane kroki
         if self.auto_test_job:
@@ -902,6 +919,44 @@ class MusicPlayerTest:
 
         # Wyczyść status
         self.auto_status_label.config(text="")
+
+    def save_test_report(self, status, interrupted):
+        """Zapisuje raport z testu do CSV"""
+        try:
+            if not self.auto_test_start_time:
+                return
+
+            # Oblicz czas trwania
+            duration = int((datetime.now() - self.auto_test_start_time).total_seconds())
+
+            # Pobierz nazwę pliku audio
+            audio_file = "N/A"
+            if self.current_file:
+                audio_file = os.path.basename(self.current_file)
+
+            # Ile kroków ukończono
+            completed_steps = self.auto_test_step
+            total_steps = len(self.auto_test_volumes)
+
+            # Lista testowanych głośności (tylko te które były)
+            volumes_tested = self.auto_test_volumes[:completed_steps]
+
+            # Zapisz do CSV
+            reporter = get_test_reporter()
+            reporter.save_test1_result(
+                operator_hrid=self.operator_hrid,
+                device_serial=self.device_serial,
+                audio_file=audio_file,
+                status=status,
+                completed_steps=completed_steps,
+                total_steps=total_steps,
+                volumes_tested=volumes_tested,
+                duration=duration,
+                interrupted=interrupted,
+                notes=""
+            )
+        except Exception as e:
+            print(f"Błąd zapisu raportu: {e}")
 
     def close_window(self):
         """Zamyka okno"""

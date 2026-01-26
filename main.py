@@ -797,7 +797,10 @@ class AudioMultiTool:
             test_window.configure(bg=self.COLORS['bg_main'])
 
             from music_player_test import MusicPlayerTest
-            test = MusicPlayerTest(test_window)
+            device_serial = getattr(self, 'scanned_device', None)
+            print(
+                f"[DEBUG] Przekazuję do TEST1 - Operator: {self.logged_operator}, Device: {device_serial}")  # <-- DODAJ
+            test = MusicPlayerTest(test_window, operator_hrid=self.logged_operator, device_serial=device_serial)
 
             self.resource_mgr.register_window(test_window, 'music_player')
             self.current_test_window = test_window
