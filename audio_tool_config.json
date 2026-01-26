@@ -3,7 +3,7 @@
         "version": "1.0.0",
         "first_run": false,
         "window_geometry": {
-            "main": "550x700+156+156",
+            "main": "550x700+52+52",
             "music_player": "650x720",
             "tone_generator": "580x680",
             "stereotest": "580x750"
@@ -49,5 +49,18 @@
     "ui": {
         "theme": "white",
         "confirm_exit": true
+    },
+    "test1_auto": {
+        "step_duration": 2,
+        "volume_levels": [
+            10,
+            20,
+            30,
+            40,
+            50,
+            60,
+            70,
+            80
+        ]
     }
 }

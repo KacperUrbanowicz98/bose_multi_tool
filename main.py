@@ -6,7 +6,7 @@ Autorzy: Kacper Urbanowicz, Rafał Kobylecki
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext
+from tkinter import ttk, messagebox, scrolledtext, simpledialog
 import sys
 import os
 import json
@@ -177,7 +177,7 @@ class AudioMultiTool:
 
         eng_window = tk.Toplevel(self.root)
         eng_window.title("Tryb Inżynieryjny")
-        eng_window.geometry("800x600")
+        eng_window.geometry("800x750")
         eng_window.configure(bg=self.COLORS['bg_main'])
         eng_window.protocol("WM_DELETE_WINDOW", lambda: self.close_engineering_mode(eng_window))
 
@@ -446,6 +446,208 @@ class AudioMultiTool:
                       relief=tk.SOLID,
                       font=('Arial', 8)).pack(side=tk.LEFT, padx=4)
 
+        # === ZAKŁADKA 5: TEST 1 AUTO CONFIG ===
+        test1_auto_tab = tk.Frame(notebook, bg=self.COLORS['bg_main'], padx=15, pady=15)
+        notebook.add(test1_auto_tab, text="TEST 1 AUTO")
+
+        tk.Label(test1_auto_tab,
+                 text="⚙ Konfiguracja Automatycznego Testu 1",
+                 font=('Arial', 12, 'bold'),
+                 bg=self.COLORS['bg_main'],
+                 fg=self.COLORS['text_primary']).pack(pady=(0, 15))
+
+        # === CZAS TRWANIA KROKU ===
+        duration_frame = tk.Frame(test1_auto_tab, bg=self.COLORS['bg_card'], relief=tk.SOLID, bd=1)
+        duration_frame.pack(padx=10, pady=10, fill='x')
+
+        tk.Label(duration_frame,
+                 text="⏱ Czas trwania jednego kroku (sekundy):",
+                 font=('Arial', 9, 'bold'),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
+
+        current_duration = self.config_mgr.get('test1_auto.step_duration', 5)
+        duration_spinbox = tk.Spinbox(duration_frame,
+                                      from_=1,
+                                      to=60,
+                                      width=10,
+                                      font=('Arial', 10))
+        duration_spinbox.delete(0, tk.END)
+        duration_spinbox.insert(0, str(current_duration))
+        duration_spinbox.pack(pady=(0, 10), padx=10, anchor='w')
+
+        # === POZIOMY GŁOŚNOŚCI ===
+        volume_frame_outer = tk.Frame(test1_auto_tab, bg=self.COLORS['bg_card'], relief=tk.SOLID, bd=1)
+        volume_frame_outer.pack(padx=10, pady=10, fill='both', expand=True)
+
+        tk.Label(volume_frame_outer,
+                 text="🔊 Poziomy głośności do sprawdzenia:",
+                 font=('Arial', 9, 'bold'),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
+
+        volume_content = tk.Frame(volume_frame_outer, bg=self.COLORS['bg_card'])
+        volume_content.pack(fill='both', expand=True, padx=10, pady=(0, 10))
+
+        # Listbox z poziomami
+        current_volumes = self.config_mgr.get('test1_auto.volume_levels', [10, 20, 30, 40, 50, 60, 70, 80])
+
+        list_frame = tk.Frame(volume_content, bg=self.COLORS['bg_card'])
+        list_frame.pack(side='left', fill='both', expand=True)
+
+        volumes_listbox = tk.Listbox(list_frame,
+                                     height=8,
+                                     font=('Arial', 9),
+                                     selectmode=tk.SINGLE,
+                                     bg='#FFFFFF',
+                                     fg=self.COLORS['text_primary'],
+                                     bd=1,
+                                     relief=tk.SOLID)
+        volumes_listbox.pack(side='left', fill='both', expand=True)
+
+        scrollbar = tk.Scrollbar(list_frame, command=volumes_listbox.yview)
+        scrollbar.pack(side='left', fill='y')
+        volumes_listbox.config(yscrollcommand=scrollbar.set)
+
+        for vol in current_volumes:
+            volumes_listbox.insert(tk.END, f"{vol}%")
+
+        # Przyciski do zarządzania
+        button_frame = tk.Frame(volume_content, bg=self.COLORS['bg_card'])
+        button_frame.pack(side='left', padx=10)
+
+        def add_volume():
+            try:
+                new_vol = tk.simpledialog.askinteger("Dodaj poziom",
+                                                     "Podaj poziom głośności (1-100):",
+                                                     minvalue=1,
+                                                     maxvalue=100)
+                if new_vol:
+                    volumes_listbox.insert(tk.END, f"{new_vol}%")
+                    update_preview()
+            except:
+                pass
+
+        def remove_volume():
+            selected = volumes_listbox.curselection()
+            if selected:
+                volumes_listbox.delete(selected[0])
+                update_preview()
+            else:
+                messagebox.showwarning("Brak wyboru", "Wybierz poziom do usunięcia!")
+
+        tk.Button(button_frame,
+                  text="➕ Dodaj",
+                  command=add_volume,
+                  bg=self.COLORS['button_bg'],
+                  fg=self.COLORS['button_fg'],
+                  activebackground=self.COLORS['button_hover'],
+                  activeforeground=self.COLORS['button_hover_fg'],
+                  bd=2,
+                  relief=tk.SOLID,
+                  font=('Arial', 8),
+                  width=10).pack(pady=2)
+
+        tk.Button(button_frame,
+                  text="➖ Usuń",
+                  command=remove_volume,
+                  bg=self.COLORS['button_bg'],
+                  fg=self.COLORS['button_fg'],
+                  activebackground=self.COLORS['button_hover'],
+                  activeforeground=self.COLORS['button_hover_fg'],
+                  bd=2,
+                  relief=tk.SOLID,
+                  font=('Arial', 8),
+                  width=10).pack(pady=2)
+
+        # === PODGLĄD TESTU ===
+        preview_frame = tk.Frame(test1_auto_tab, bg=self.COLORS['bg_card'], relief=tk.SOLID, bd=1)
+        preview_frame.pack(padx=10, pady=10, fill='x')
+
+        tk.Label(preview_frame,
+                 text="📊 Podgląd testu:",
+                 font=('Arial', 9, 'bold'),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
+
+        preview_label = tk.Label(preview_frame,
+                                 text="",
+                                 font=('Arial', 9),
+                                 bg=self.COLORS['bg_card'],
+                                 fg=self.COLORS['text_secondary'],
+                                 justify='left')
+        preview_label.pack(padx=10, pady=(0, 10), anchor='w')
+
+        def update_preview():
+            try:
+                duration = int(duration_spinbox.get())
+                num_steps = volumes_listbox.size()
+                total_time = duration * num_steps
+
+                preview_text = f"• Liczba kroków: {num_steps}\n"
+                preview_text += f"• Czas każdego kroku: {duration} sek\n"
+                preview_text += f"• Łączny czas testu: {total_time} sek ({total_time // 60} min {total_time % 60} sek)"
+
+                preview_label.config(text=preview_text)
+            except:
+                preview_label.config(text="⚠ Błąd w konfiguracji")
+
+        # Odśwież podgląd przy zmianie czasu
+        duration_spinbox.config(command=lambda: update_preview())
+        update_preview()  # Początkowy podgląd
+
+        # === PRZYCISK ZAPISU ===
+        def save_test1_config():
+            try:
+                # Pobierz wartości
+                duration = int(duration_spinbox.get())
+
+                if duration < 1 or duration > 60:
+                    messagebox.showerror("Błąd", "Czas trwania musi być między 1 a 60 sekund!")
+                    return
+
+                volumes = []
+                for i in range(volumes_listbox.size()):
+                    vol_str = volumes_listbox.get(i).replace('%', '').strip()
+                    volumes.append(int(vol_str))
+
+                if not volumes:
+                    messagebox.showerror("Błąd", "Lista poziomów nie może być pusta!")
+                    return
+
+                # Sortuj poziomy rosnąco
+                volumes.sort()
+
+                # Zapisz do konfiguracji
+                self.config_mgr.set('test1_auto.step_duration', duration)
+                self.config_mgr.set('test1_auto.volume_levels', volumes)
+                self.config_mgr.save_config()
+
+                levels_str = ", ".join([f"{v}%" for v in volumes])
+                messagebox.showinfo("Zapisano ✓",
+                                    f"Konfiguracja TEST 1 AUTO zapisana:\n\n"
+                                    f"• Czas kroku: {duration} sek\n"
+                                    f"• Poziomy: {levels_str}")
+                update_preview()
+
+            except ValueError:
+                messagebox.showerror("Błąd", "Nieprawidłowe wartości w konfiguracji!")
+            except Exception as e:
+                messagebox.showerror("Błąd", f"Nie można zapisać:\n{str(e)}")
+
+        tk.Button(test1_auto_tab,
+                  text="💾 ZAPISZ KONFIGURACJĘ",
+                  command=save_test1_config,
+                  bg=self.COLORS['button_bg'],
+                  fg=self.COLORS['button_fg'],
+                  activebackground=self.COLORS['button_hover'],
+                  activeforeground=self.COLORS['button_hover_fg'],
+                  bd=2,
+                  relief=tk.SOLID,
+                  font=('Arial', 9, 'bold'),
+                  width=30,
+                  height=2).pack(pady=15)
+
         footer_frame = tk.Frame(eng_window, bg=self.COLORS['bg_main'], padx=15, pady=15)
         footer_frame.pack(fill=tk.X)
 
@@ -664,13 +866,13 @@ class AudioMultiTool:
                      bg=self.COLORS['bg_main'], fg=self.COLORS['text_primary']).pack()
 
         tk.Label(main_frame,
-                 text="TESTOWANIE AUDIO",
+                 text="BOSE",
                  font=('Arial', 20, 'bold'),
                  bg=self.COLORS['bg_main'],
                  fg=self.COLORS['text_primary']).pack()
 
         tk.Label(main_frame,
-                 text="MULTI-TOOL",
+                 text="AUDIO-MULTI-TOOL",
                  font=('Arial', 20, 'bold'),
                  bg=self.COLORS['bg_main'],
                  fg=self.COLORS['text_primary']).pack(pady=(0, 3))
@@ -687,7 +889,7 @@ class AudioMultiTool:
         button_frame.pack(pady=8)
 
         tests = [
-            ("TEST 1", "Odtwarzacz Muzyki + EQ", self.open_music_player_test, 'normal'),
+            ("TEST 1", "Test głośności", self.open_music_player_test, 'normal'),
             ("TEST 2", "Generator Częstotliwości", self.open_tone_generator_test, 'normal'),
             ('TEST 3', 'Test Stereo', self.open_stereo_test, 'normal'),
             ("TEST 4", "Przejazd Częstotliwości", self.show_under_construction, 'disabled'),

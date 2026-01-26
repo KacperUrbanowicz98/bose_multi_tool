@@ -269,13 +269,14 @@ class MusicPlayerTest:
         auto_container = tk.Frame(auto_test_frame, bg=self.colors['bg_main'])
         auto_container.pack(fill=tk.X, padx=8, pady=8)
 
-        tk.Label(
+        self.auto_description_label = tk.Label(
             auto_container,
             text="Test głośności: 10% → 82% (5s na poziom)",
             font=('Arial', 8),
             bg=self.colors['bg_main'],
             fg=self.colors['text_secondary']
-        ).pack(pady=(0, 5))
+        )
+        self.auto_description_label.pack(pady=(0, 5))
 
         auto_buttons = tk.Frame(auto_container, bg=self.colors['bg_main'])
         auto_buttons.pack()
@@ -790,6 +791,29 @@ class MusicPlayerTest:
         if not self.playlist:
             messagebox.showwarning("Uwaga", "Playlista jest pusta")
             return
+
+        # === WCZYTAJ ŚWIEŻĄ KONFIGURACJĘ Z TRYBU INŻYNIERYJNEGO ===
+        from config_manager import get_config_manager
+        config_mgr = get_config_manager()
+
+        # WAŻNE: Przeładuj config z pliku (żeby pobrać najnowsze zmiany)
+        config_mgr.reload_config()
+
+        # Wczytaj ustawienia auto testu
+        self.auto_test_volumes = config_mgr.get('test1_auto.volume_levels', [10, 20, 30, 40, 50, 60, 70, 80])
+        step_duration_sec = config_mgr.get('test1_auto.step_duration', 5)
+        self.auto_test_duration = step_duration_sec * 1000  # konwersja na ms
+
+        # Zaktualizuj opis testu w interfejsie
+        min_vol = min(self.auto_test_volumes) if self.auto_test_volumes else 0
+        max_vol = max(self.auto_test_volumes) if self.auto_test_volumes else 0
+        self.auto_description_label.config(
+            text=f"Test głośności: {min_vol}% → {max_vol}% ({step_duration_sec}s na poziom)"
+        )
+
+        # Zatrzymaj muzykę jeśli gra
+        if self.is_playing:
+            self.stop_music
 
         # Zatrzymaj muzykę jeśli gra
         if self.is_playing:
