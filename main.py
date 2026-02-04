@@ -450,6 +450,10 @@ class AudioMultiTool:
         test1_auto_tab = tk.Frame(notebook, bg=self.COLORS['bg_main'], padx=15, pady=15)
         notebook.add(test1_auto_tab, text="TEST 1 AUTO")
 
+        # === DODAJ KOLOROWY PASEK NA GÓRZE === 👇
+        auto_indicator = tk.Frame(test1_auto_tab, bg='#4CAF50', height=5)  # Zielony pasek
+        auto_indicator.pack(fill='x', pady=(0, 10))
+
         tk.Label(test1_auto_tab,
                  text="⚙ Konfiguracja Automatycznego Testu 1",
                  font=('Arial', 12, 'bold'),
@@ -900,6 +904,171 @@ class AudioMultiTool:
                   width=30,
                   height=2).pack(pady=15)
 
+        # === ZAKŁADKA 7: TEST 3 AUTO CONFIG ===
+        test3_auto_tab = tk.Frame(notebook, bg=self.COLORS['bg_main'], padx=15, pady=15)
+        notebook.add(test3_auto_tab, text="TEST 3 AUTO")
+
+        tk.Label(test3_auto_tab,
+                 text="⚙ Konfiguracja Automatycznego Testu 3",
+                 font=('Arial', 12, 'bold'),
+                 bg=self.COLORS['bg_main'],
+                 fg=self.COLORS['text_primary']).pack(pady=(0, 15))
+
+        # === CZAS TRWANIA KANAŁU ===
+        duration_frame3 = tk.Frame(test3_auto_tab, bg=self.COLORS['bg_card'], relief=tk.SOLID, bd=1)
+        duration_frame3.pack(padx=10, pady=10, fill='x')
+
+        tk.Label(duration_frame3,
+                 text="⏱ Czas trwania testu każdego kanału (sekundy):",
+                 font=('Arial', 9, 'bold'),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
+
+        current_duration3 = self.config_mgr.get('test3_auto.duration_per_channel', 5)
+        duration3_spinbox = tk.Spinbox(duration_frame3,
+                                       from_=3,
+                                       to=60,
+                                       width=10,
+                                       font=('Arial', 9))
+        duration3_spinbox.delete(0, tk.END)
+        duration3_spinbox.insert(0, str(current_duration3))
+        duration3_spinbox.pack(pady=(0, 10), padx=10, anchor='w')
+
+        # === CZĘSTOTLIWOŚĆ ===
+        freq_frame3 = tk.Frame(test3_auto_tab, bg=self.COLORS['bg_card'], relief=tk.SOLID, bd=1)
+        freq_frame3.pack(padx=10, pady=10, fill='x')
+
+        tk.Label(freq_frame3,
+                 text="🎚 Częstotliwość tonu testowego (Hz):",
+                 font=('Arial', 9, 'bold'),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
+
+        current_freq3 = self.config_mgr.get('test3_auto.frequency', 1000)
+        freq3_spinbox = tk.Spinbox(freq_frame3,
+                                   from_=100,
+                                   to=5000,
+                                   width=10,
+                                   font=('Arial', 9))
+        freq3_spinbox.delete(0, tk.END)
+        freq3_spinbox.insert(0, str(current_freq3))
+        freq3_spinbox.pack(pady=(0, 10), padx=10, anchor='w')
+
+        # === GŁOŚNOŚĆ ===
+        volume_frame3 = tk.Frame(test3_auto_tab, bg=self.COLORS['bg_card'], relief=tk.SOLID, bd=1)
+        volume_frame3.pack(padx=10, pady=10, fill='x')
+
+        tk.Label(volume_frame3,
+                 text="🔊 Głośność testu (%):",
+                 font=('Arial', 9, 'bold'),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
+
+        current_volume3 = self.config_mgr.get('test3_auto.volume', 50)
+        volume3_spinbox = tk.Spinbox(volume_frame3,
+                                     from_=10,
+                                     to=100,
+                                     width=10,
+                                     font=('Arial', 9))
+        volume3_spinbox.delete(0, tk.END)
+        volume3_spinbox.insert(0, str(current_volume3))
+        volume3_spinbox.pack(pady=(0, 10), padx=10, anchor='w')
+
+        # === PODGLĄD ===
+        preview_frame3 = tk.Frame(test3_auto_tab, bg=self.COLORS['bg_card'], relief=tk.SOLID, bd=1)
+        preview_frame3.pack(padx=10, pady=10, fill='x')
+
+        tk.Label(preview_frame3,
+                 text="📊 Podgląd testu:",
+                 font=('Arial', 9, 'bold'),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
+
+        preview_label3 = tk.Label(preview_frame3,
+                                  text="",
+                                  font=('Arial', 9),
+                                  bg=self.COLORS['bg_card'],
+                                  fg=self.COLORS['text_secondary'],
+                                  justify='left')
+        preview_label3.pack(padx=10, pady=(0, 10), anchor='w')
+
+        def update_preview3():
+            try:
+                duration = int(duration3_spinbox.get())
+                freq = int(freq3_spinbox.get())
+                volume = int(volume3_spinbox.get())
+
+                total_time = duration * 3  # Lewy + Prawy + Oba
+
+                preview_text = f"• Sekwencja: Lewy → Prawy → Oba\n"
+                preview_text += f"• Czas każdego: {duration} sek\n"
+                preview_text += f"• Łączny czas: {total_time} sek\n"
+                preview_text += f"• Częstotliwość: {freq} Hz\n"
+                preview_text += f"• Głośność: {volume}%"
+
+                preview_label3.config(text=preview_text)
+            except:
+                preview_label3.config(text="⚠ Błąd w konfiguracji")
+
+        # Odśwież przy zmianie
+        for widget in [duration3_spinbox, freq3_spinbox, volume3_spinbox]:
+            widget.config(command=lambda: update_preview3())
+
+        update_preview3()
+
+        # === PRZYCISK ZAPISU ===
+        def save_test3_config():
+            try:
+                duration = int(duration3_spinbox.get())
+                freq = int(freq3_spinbox.get())
+                volume = int(volume3_spinbox.get())
+
+                # Walidacja
+                if duration < 3 or duration > 60:
+                    messagebox.showerror("Błąd", "Czas trwania: 3 - 60 sekund")
+                    return
+
+                if freq < 100 or freq > 5000:
+                    messagebox.showerror("Błąd", "Częstotliwość: 100 - 5000 Hz")
+                    return
+
+                if volume < 10 or volume > 100:
+                    messagebox.showerror("Błąd", "Głośność: 10 - 100%")
+                    return
+
+                # Zapisz
+                self.config_mgr.set('test3_auto.duration_per_channel', duration)
+                self.config_mgr.set('test3_auto.frequency', freq)
+                self.config_mgr.set('test3_auto.volume', volume)
+                self.config_mgr.save_config()
+
+                total_time = duration * 3
+                messagebox.showinfo("Zapisano ✓",
+                                    f"Konfiguracja TEST 3 AUTO zapisana:\n\n"
+                                    f"• Czas każdego kanału: {duration} sek\n"
+                                    f"• Łączny czas: {total_time} sek\n"
+                                    f"• Częstotliwość: {freq} Hz\n"
+                                    f"• Głośność: {volume}%")
+                update_preview3()
+
+            except ValueError:
+                messagebox.showerror("Błąd", "Nieprawidłowe wartości!")
+            except Exception as e:
+                messagebox.showerror("Błąd", f"Nie można zapisać:\n{str(e)}")
+
+        tk.Button(test3_auto_tab,
+                  text="💾 ZAPISZ KONFIGURACJĘ",
+                  command=save_test3_config,
+                  bg=self.COLORS['button_bg'],
+                  fg=self.COLORS['button_fg'],
+                  activebackground=self.COLORS['button_hover'],
+                  activeforeground=self.COLORS['button_hover_fg'],
+                  bd=2,
+                  relief=tk.SOLID,
+                  font=('Arial', 9, 'bold'),
+                  width=30,
+                  height=2).pack(pady=15)
+
         footer_frame = tk.Frame(eng_window, bg=self.COLORS['bg_main'], padx=15, pady=15)
         footer_frame.pack(fill=tk.X)
 
@@ -1190,8 +1359,8 @@ class AudioMultiTool:
         footer_frame.pack(side=tk.BOTTOM, pady=(10, 0))
 
         tk.Label(footer_frame,
-                 text="Kacper Urbanowicz | Rafał Kobylecki",
-                 font=('Arial', 7),
+                 text="Kacper Urbanowicz",
+                 font=('Arial', 8),
                  bg=self.COLORS['bg_main'],
                  fg=self.COLORS['text_secondary']).pack()
 
@@ -1331,7 +1500,10 @@ class AudioMultiTool:
             test_window.geometry(geometry)
             test_window.configure(bg=self.COLORS['bg_main'])
 
-            test = StereoTest(test_window)
+            device_serial = getattr(self, 'scanned_device', None)
+            test = StereoTest(test_window,
+                              operator_hrid=self.logged_operator,
+                              device_serial=device_serial)
 
             def close_test():
                 try:

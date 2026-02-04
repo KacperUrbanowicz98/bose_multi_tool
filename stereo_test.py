@@ -9,11 +9,16 @@ import pygame
 import numpy as np
 import threading
 import time
+from datetime import datetime
+from test_reporter import get_test_reporter
+
 
 class StereoTest:
-    def __init__(self, window):
+    def __init__(self, window, operator_hrid="UNKNOWN", device_serial=None):
         self.window = window
         self.window.configure(bg='#FFFFFF')
+        self.operator_hrid = operator_hrid
+        self.device_serial = device_serial
 
         # === KOLORY BOSE WHITE THEME ===
         self.colors = {
@@ -24,8 +29,8 @@ class StereoTest:
             'border': '#000000',
             'button_bg': '#FFFFFF',
             'button_fg': '#000000',
-            'button_hover': '#000000',  # <-- DODAJ
-            'button_hover_fg': '#FFFFFF',  # <-- DODAJ
+            'button_hover': '#000000',
+            'button_hover_fg': '#FFFFFF',
             'button_active': '#000000',
             'button_active_fg': '#FFFFFF',
             'slider_bg': '#F5F5F5',
@@ -43,6 +48,16 @@ class StereoTest:
         self.frequency = 1000
         self.sound_thread = None
         self.stop_sound = False
+
+        # === ZMIENNE AUTO TESTU ===
+        self.auto_test_running = False
+        self.auto_test_start_time = None
+        self.auto_test_job = None
+        self.auto_duration_per_channel = 5  # domyślnie 5 sekund
+        self.auto_frequency = 1000
+        self.auto_volume = 50
+        self.current_test_index = 0
+
 
         # Utwórz interfejs
         self.create_widgets()
@@ -79,6 +94,74 @@ class StereoTest:
         # === GŁÓWNY KONTENER ===
         main_container = tk.Frame(self.window, bg=self.colors['bg_main'])
         main_container.pack(fill='both', expand=True, padx=30, pady=15)
+
+        # === AUTO TEST ===
+        auto_test_frame = tk.LabelFrame(
+            main_container,
+            text="AUTOMATYCZNY TEST",
+            font=("Arial", 9, "bold"),
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_primary'],
+            bd=2,
+            relief=tk.SOLID
+        )
+        auto_test_frame.pack(fill=tk.X, pady=(0, 12))
+
+        auto_container = tk.Frame(auto_test_frame, bg=self.colors['bg_main'])
+        auto_container.pack(fill=tk.X, padx=8, pady=8)
+
+        self.auto_description_label = tk.Label(
+            auto_container,
+            text="Test: Lewy → Prawy → Oba (5s każdy)",
+            font=('Arial', 8),
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_secondary']
+        )
+        self.auto_description_label.pack(pady=(0, 5))
+
+        auto_buttons = tk.Frame(auto_container, bg=self.colors['bg_main'])
+        auto_buttons.pack()
+
+        self.auto_start_btn = tk.Button(
+            auto_buttons,
+            text="▶ START AUTO TEST",
+            font=('Arial', 8, 'bold'),
+            bg=self.colors['button_bg'],
+            fg=self.colors['button_fg'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2,
+            relief=tk.SOLID,
+            width=18,
+            command=self.start_auto_test
+        )
+        self.auto_start_btn.pack(side=tk.LEFT, padx=3)
+
+        self.auto_stop_btn = tk.Button(
+            auto_buttons,
+            text="⏹ STOP AUTO TEST",
+            font=('Arial', 8, 'bold'),
+            bg=self.colors['button_bg'],
+            fg=self.colors['button_fg'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2,
+            relief=tk.SOLID,
+            width=18,
+            state=tk.DISABLED,
+            command=self.stop_auto_test
+        )
+        self.auto_stop_btn.pack(side=tk.LEFT, padx=3)
+
+        # Status auto testu
+        self.auto_status_label = tk.Label(
+            auto_container,
+            text="",
+            font=('Arial', 8),
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_secondary']
+        )
+        self.auto_status_label.pack(pady=(5, 0))
 
         # === SEKCJA WIZUALIZACJI KANAŁÓW ===
         viz_frame = tk.Frame(main_container, bg=self.colors['bg_card'], relief='solid', borderwidth=1)
@@ -324,21 +407,171 @@ class StereoTest:
             activeforeground=self.colors['button_active_fg'],
             bd=2,
             relief=tk.SOLID,
-            font=('Arial', 8),  # <-- mniejsza czcionka!
+            font=('Arial', 8),
             width=20,
             cursor='hand2'
         )
         back_button.pack(pady=(15, 0))
 
+    # === AUTO TEST METHODS ===
+
+    def start_auto_test(self):
+        """Uruchamia automatyczny test kanałów"""
+        # Wczytaj konfigurację
+        from config_manager import get_config_manager
+        config_mgr = get_config_manager()
+        config_mgr.reload_config()
+
+        self.auto_duration_per_channel = config_mgr.get('test3_auto.duration_per_channel', 5)
+        self.auto_frequency = config_mgr.get('test3_auto.frequency', 1000)
+        self.auto_volume = config_mgr.get('test3_auto.volume', 50)
+
+        # Zaktualizuj opis
+        total_time = self.auto_duration_per_channel * 3
+        self.auto_description_label.config(
+            text=f"Test: Lewy → Prawy → Oba ({self.auto_duration_per_channel}s każdy, {total_time}s total)"
+        )
+
+        # Ustaw parametry
+        self.frequency = self.auto_frequency
+        self.volume = self.auto_volume
+        self.freq_slider.set(self.auto_frequency)
+        self.vol_slider.set(self.auto_volume)
+        self.freq_value_label.config(text=f"{self.auto_frequency} Hz")
+        self.vol_value_label.config(text=f"{self.auto_volume}%")
+
+        # Zatrzymaj normalny test
+        if self.is_playing:
+            self.stop_playback()
+
+        # Zablokuj kontrolki
+        self.auto_test_running = True
+        self.auto_test_start_time = datetime.now()
+
+        self.btn_left.config(state=tk.DISABLED)
+        self.btn_right.config(state=tk.DISABLED)
+        self.btn_both.config(state=tk.DISABLED)
+        self.btn_stop.config(state=tk.DISABLED)
+        self.freq_slider.config(state=tk.DISABLED)
+        self.vol_slider.config(state=tk.DISABLED)
+
+        self.auto_start_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.auto_stop_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+
+        # Start testu - lewy kanał
+        self.run_auto_test_sequence()
+
+    def run_auto_test_sequence(self):
+        """Wykonuje sekwencję testu"""
+        if not self.auto_test_running:
+            return
+
+        # Sekwencja: lewy → prawy → oba
+        channels = ['left', 'right', 'both']
+        self.current_test_index = 0
+
+
+        def test_next_channel():
+            """Testuje następny kanał w sekwencji"""
+
+            if not self.auto_test_running or self.current_test_index >= len(channels):
+                # Test zakończony
+                self.save_test_report(status="PASS", interrupted=False)
+                self.stop_auto_test(save_report=False)
+                messagebox.showinfo("Auto Test", "Test automatyczny zakończony pomyślnie!\n\nRaport został zapisany.")
+                return
+
+            channel = channels[self.current_test_index]
+            channel_names = {'left': 'Lewy', 'right': 'Prawy', 'both': 'Oba'}
+
+            # Aktualizuj status
+            self.auto_status_label.config(
+                text=f"Test kanału: {channel_names[channel]} ({self.current_test_index + 1}/3)",
+                fg=self.colors['text_primary']
+            )
+
+            # Odtwórz kanał
+            self.play_channel(channel)
+
+            # Zwiększ indeks
+            self.current_test_index += 1
+
+            # Zaplanuj następny kanał
+            self.auto_test_job = self.window.after(
+                self.auto_duration_per_channel * 1000,
+                test_next_channel
+            )
+
+        # Start od pierwszego kanału
+        test_next_channel()
+
+    def stop_auto_test(self, save_report=True):
+        """Zatrzymuje automatyczny test"""
+        # Zapisz raport jeśli przerwano
+        if self.auto_test_running and save_report:
+            self.save_test_report(status="INTERRUPTED", interrupted=True)
+
+        self.auto_test_running = False
+
+        # Anuluj zaplanowane kroki
+        if self.auto_test_job:
+            self.window.after_cancel(self.auto_test_job)
+            self.auto_test_job = None
+
+        # Zatrzymaj dźwięk
+        self.stop_playback()
+
+        # Odblokuj kontrolki
+        self.btn_left.config(state=tk.NORMAL)
+        self.btn_right.config(state=tk.NORMAL)
+        self.btn_both.config(state=tk.NORMAL)
+        self.btn_stop.config(state=tk.NORMAL)
+        self.freq_slider.config(state=tk.NORMAL)
+        self.vol_slider.config(state=tk.NORMAL)
+
+        self.auto_start_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+        self.auto_stop_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+
+        # Wyczyść status
+        self.auto_status_label.config(text="")
+
+    def save_test_report(self, status, interrupted):
+        """Zapisuje raport z testu do CSV"""
+        try:
+            if not self.auto_test_start_time:
+                return
+
+            # Oblicz czas trwania
+            duration = int((datetime.now() - self.auto_test_start_time).total_seconds())
+
+            # Zapisz do CSV
+            reporter = get_test_reporter()
+            reporter.save_test3_result(
+                operator_hrid=self.operator_hrid,
+                device_serial=self.device_serial,
+                frequency=self.auto_frequency,
+                volume=self.auto_volume,
+                duration_per_channel=self.auto_duration_per_channel,
+                total_duration=duration,
+                status=status,
+                interrupted=interrupted
+            )
+        except Exception as e:
+            print(f"Błąd zapisu raportu TEST 3: {e}")
+
+    # === ORIGINAL METHODS (bez zmian) ===
+
     def _bind_hover(self, button):
         """Dodaje efekt hover do przycisku"""
         def on_enter(e):
-            button['bg'] = self.colors['button_hover']
-            button['fg'] = self.colors['button_hover_fg']
+            if button['state'] != tk.DISABLED:
+                button['bg'] = self.colors['button_hover']
+                button['fg'] = self.colors['button_hover_fg']
 
         def on_leave(e):
-            button['bg'] = self.colors['button_bg']
-            button['fg'] = self.colors['button_fg']
+            if button['state'] != tk.DISABLED:
+                button['bg'] = self.colors['button_bg']
+                button['fg'] = self.colors['button_fg']
 
         button.bind('<Enter>', on_enter)
         button.bind('<Leave>', on_leave)
@@ -349,7 +582,7 @@ class StereoTest:
         self.freq_value_label.config(text=f"{self.frequency} Hz")
 
         # Jeśli gra, zaktualizuj dźwięk
-        if self.is_playing:
+        if self.is_playing and not self.auto_test_running:
             self.play_channel(self.current_channel, restart=True)
 
     def update_volume(self, value):
@@ -369,13 +602,19 @@ class StereoTest:
 
     def play_channel(self, channel, restart=False):
         """Odtwarza dźwięk na wybranym kanale"""
-        if self.is_playing and not restart:
+        if self.is_playing and not restart and not self.auto_test_running:  # <-- ZMIEŃ WARUNEK
             return
 
         # Zatrzymaj poprzedni dźwięk
         if self.is_playing:
-            self.stop_playback()
-            time.sleep(0.1)  # Krótka pauza
+            self.stop_sound = True  # Oznacz do zatrzymania
+            pygame.mixer.stop()
+
+            # Poczekaj aż wątek się zatrzyma (max 1 sekunda)
+            if self.sound_thread and self.sound_thread.is_alive():
+                self.sound_thread.join(timeout=1.0)
+
+            time.sleep(0.1)
 
         self.current_channel = channel
         self.is_playing = True
@@ -392,21 +631,18 @@ class StereoTest:
     def _play_sound_thread(self, channel):
         """Wątek odtwarzający dźwięk"""
         try:
+
             while not self.stop_sound:
                 # Generuj krótki odcinek tonu (0.5 sekundy)
                 tone = self.generate_tone(self.frequency, 0.5)
 
                 # Utwórz stereo (2 kanały)
                 if channel == 'left':
-                    # Tylko lewy kanał
                     stereo_tone = np.zeros((len(tone), 2), dtype=np.int16)
-                    stereo_tone[:, 0] = tone  # Lewy kanał
-                elif channel == 'right':
-                    # Tylko prawy kanał
+                    stereo_tone[:, 0] = tone  # Lewy kanał                elif channel == 'right':
                     stereo_tone = np.zeros((len(tone), 2), dtype=np.int16)
                     stereo_tone[:, 1] = tone  # Prawy kanał
                 else:  # both
-                    # Oba kanały
                     stereo_tone = np.column_stack((tone, tone))
 
                 # Zastosuj głośność
@@ -449,28 +685,6 @@ class StereoTest:
 
     def cleanup(self):
         """Czyszczenie zasobów"""
+        if self.auto_test_running:
+            self.stop_auto_test()
         self.stop_playback()
-
-# === FUNKCJA URUCHAMIAJĄCA TEST ===
-def run_stereo_test():
-    """Uruchamia test stereo w nowym oknie"""
-    test_window = tk.Toplevel()
-    test_window.title("Test 3: Stereo (Lewa/Prawa)")
-    test_window.geometry("500x750")
-    test_window.configure(bg='#FFFFFF')
-
-    app = StereoTest(test_window)
-
-    def on_closing():
-        app.cleanup()
-        test_window.destroy()
-
-    test_window.protocol("WM_DELETE_WINDOW", on_closing)
-
-    return test_window
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    root.withdraw()
-    run_stereo_test()
-    root.mainloop()
