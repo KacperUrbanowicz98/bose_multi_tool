@@ -177,7 +177,7 @@ class AudioMultiTool:
 
         eng_window = tk.Toplevel(self.root)
         eng_window.title("Tryb Inżynieryjny")
-        eng_window.geometry("800x750")
+        eng_window.geometry("800x850")
         eng_window.configure(bg=self.COLORS['bg_main'])
         eng_window.protocol("WM_DELETE_WINDOW", lambda: self.close_engineering_mode(eng_window))
 
@@ -648,6 +648,258 @@ class AudioMultiTool:
                   width=30,
                   height=2).pack(pady=15)
 
+        # === ZAKŁADKA 6: TEST 2 AUTO CONFIG ===
+        test2_auto_tab = tk.Frame(notebook, bg=self.COLORS['bg_main'], padx=15, pady=15)
+        notebook.add(test2_auto_tab, text="TEST 2 AUTO")
+
+        tk.Label(test2_auto_tab,
+                 text="⚙ Konfiguracja Automatycznego Testu 2",
+                 font=('Arial', 12, 'bold'),
+                 bg=self.COLORS['bg_main'],
+                 fg=self.COLORS['text_primary']).pack(pady=(0, 15))
+
+        # === TYP FALI ===
+        wave_frame = tk.Frame(test2_auto_tab, bg=self.COLORS['bg_card'], relief=tk.SOLID, bd=1)
+        wave_frame.pack(padx=10, pady=10, fill='x')
+
+        tk.Label(wave_frame,
+                 text="🌊 Typ generowanej fali:",
+                 font=('Arial', 9, 'bold'),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
+
+        current_wave = self.config_mgr.get('test2_auto.wave_type', 'sine')
+
+        wave_options = [
+            ('Sinusoidalna', 'sine'),
+            ('Kwadratowa', 'square'),
+            ('Piłokształtna', 'sawtooth'),
+            ('Trójkątna', 'triangle')
+        ]
+
+        wave_var = tk.StringVar(value=current_wave)
+
+        for label, value in wave_options:
+            tk.Radiobutton(wave_frame,
+                           text=label,
+                           variable=wave_var,
+                           value=value,
+                           font=('Arial', 9),
+                           bg=self.COLORS['bg_card'],
+                           fg=self.COLORS['text_primary'],
+                           selectcolor=self.COLORS['bg_main'],
+                           activebackground=self.COLORS['bg_card'],
+                           activeforeground=self.COLORS['text_primary']).pack(anchor='w', padx=30, pady=2)
+
+        # === ZAKRES CZĘSTOTLIWOŚCI ===
+        freq_frame = tk.Frame(test2_auto_tab, bg=self.COLORS['bg_card'], relief=tk.SOLID, bd=1)
+        freq_frame.pack(padx=10, pady=10, fill='x')
+
+        tk.Label(freq_frame,
+                 text="🎚 Zakres częstotliwości (Hz):",
+                 font=('Arial', 9, 'bold'),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
+
+        freq_container = tk.Frame(freq_frame, bg=self.COLORS['bg_card'])
+        freq_container.pack(padx=10, pady=(0, 10))
+
+        # Od
+        tk.Label(freq_container,
+                 text="Od:",
+                 font=('Arial', 9),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(side='left', padx=(0, 5))
+
+        current_freq_min = self.config_mgr.get('test2_auto.freq_min', 20)
+        freq_min_spinbox = tk.Spinbox(freq_container,
+                                      from_=20,
+                                      to=20000,
+                                      width=8,
+                                      font=('Arial', 9))
+        freq_min_spinbox.delete(0, tk.END)
+        freq_min_spinbox.insert(0, str(current_freq_min))
+        freq_min_spinbox.pack(side='left', padx=5)
+
+        tk.Label(freq_container,
+                 text="Hz    Do:",
+                 font=('Arial', 9),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(side='left', padx=5)
+
+        current_freq_max = self.config_mgr.get('test2_auto.freq_max', 20000)
+        freq_max_spinbox = tk.Spinbox(freq_container,
+                                      from_=20,
+                                      to=20000,
+                                      width=8,
+                                      font=('Arial', 9))
+        freq_max_spinbox.delete(0, tk.END)
+        freq_max_spinbox.insert(0, str(current_freq_max))
+        freq_max_spinbox.pack(side='left', padx=5)
+
+        tk.Label(freq_container,
+                 text="Hz",
+                 font=('Arial', 9),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(side='left')
+
+        # === CZAS TRWANIA I GŁOŚNOŚĆ ===
+        settings_frame = tk.Frame(test2_auto_tab, bg=self.COLORS['bg_card'], relief=tk.SOLID, bd=1)
+        settings_frame.pack(padx=10, pady=10, fill='x')
+
+        # Czas trwania
+        tk.Label(settings_frame,
+                 text="⏱ Czas trwania testu (sekundy):",
+                 font=('Arial', 9, 'bold'),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
+
+        current_duration = self.config_mgr.get('test2_auto.duration', 10)
+        duration_spinbox = tk.Spinbox(settings_frame,
+                                      from_=5,
+                                      to=300,
+                                      width=10,
+                                      font=('Arial', 9))
+        duration_spinbox.delete(0, tk.END)
+        duration_spinbox.insert(0, str(current_duration))
+        duration_spinbox.pack(padx=10, pady=(0, 10), anchor='w')
+
+        # Głośność
+        tk.Label(settings_frame,
+                 text="🔊 Głośność testu (%):",
+                 font=('Arial', 9, 'bold'),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(pady=(5, 5), padx=10, anchor='w')
+
+        current_volume = self.config_mgr.get('test2_auto.volume', 50)
+        volume_spinbox = tk.Spinbox(settings_frame,
+                                    from_=10,
+                                    to=82,
+                                    width=10,
+                                    font=('Arial', 9))
+        volume_spinbox.delete(0, tk.END)
+        volume_spinbox.insert(0, str(current_volume))
+        volume_spinbox.pack(padx=10, pady=(0, 10), anchor='w')
+
+        # === PODGLĄD ===
+        preview_frame2 = tk.Frame(test2_auto_tab, bg=self.COLORS['bg_card'], relief=tk.SOLID, bd=1)
+        preview_frame2.pack(padx=10, pady=10, fill='x')
+
+        tk.Label(preview_frame2,
+                 text="📊 Podgląd testu:",
+                 font=('Arial', 9, 'bold'),
+                 bg=self.COLORS['bg_card'],
+                 fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
+
+        preview_label2 = tk.Label(preview_frame2,
+                                  text="",
+                                  font=('Arial', 9),
+                                  bg=self.COLORS['bg_card'],
+                                  fg=self.COLORS['text_secondary'],
+                                  justify='left')
+        preview_label2.pack(padx=10, pady=(0, 10), anchor='w')
+
+        def update_preview2():
+            try:
+                wave_type_display = {
+                    'sine': 'Sinusoidalna',
+                    'square': 'Kwadratowa',
+                    'sawtooth': 'Piłokształtna',
+                    'triangle': 'Trójkątna'
+                }
+
+                wave = wave_var.get()
+                freq_min = int(freq_min_spinbox.get())
+                freq_max = int(freq_max_spinbox.get())
+                duration = int(duration_spinbox.get())
+                volume = int(volume_spinbox.get())
+
+                preview_text = f"• Typ fali: {wave_type_display.get(wave, wave)}\n"
+                preview_text += f"• Zakres: {freq_min} Hz → {freq_max} Hz\n"
+                preview_text += f"• Czas trwania: {duration} sek\n"
+                preview_text += f"• Głośność: {volume}%"
+
+                preview_label2.config(text=preview_text)
+            except:
+                preview_label2.config(text="⚠ Błąd w konfiguracji")
+
+        # Odśwież przy zmianie
+        for widget in [freq_min_spinbox, freq_max_spinbox, duration_spinbox, volume_spinbox]:
+            widget.config(command=lambda: update_preview2())
+
+        for _, _ in wave_options:
+            pass  # Radiobuttony automatycznie zaktualizują przezwave_var
+
+        wave_var.trace('w', lambda *args: update_preview2())
+        update_preview2()
+
+        # === PRZYCISK ZAPISU ===
+        def save_test2_config():
+            try:
+                wave_type = wave_var.get()
+                freq_min = int(freq_min_spinbox.get())
+                freq_max = int(freq_max_spinbox.get())
+                duration = int(duration_spinbox.get())
+                volume = int(volume_spinbox.get())
+
+                # Walidacja
+                if freq_min >= freq_max:
+                    messagebox.showerror("Błąd", "Częstotliwość początkowa musi być mniejsza niż końcowa!")
+                    return
+
+                if freq_min < 20 or freq_max > 20000:
+                    messagebox.showerror("Błąd", "Zakres częstotliwości: 20 - 20000 Hz")
+                    return
+
+                if duration < 5 or duration > 300:
+                    messagebox.showerror("Błąd", "Czas trwania: 5 - 300 sekund")
+                    return
+
+                if volume < 10 or volume > 82:
+                    messagebox.showerror("Błąd", "Głośność: 10 - 82%")
+                    return
+
+                # Zapisz
+                self.config_mgr.set('test2_auto.wave_type', wave_type)
+                self.config_mgr.set('test2_auto.freq_min', freq_min)
+                self.config_mgr.set('test2_auto.freq_max', freq_max)
+                self.config_mgr.set('test2_auto.duration', duration)
+                self.config_mgr.set('test2_auto.volume', volume)
+                self.config_mgr.save_config()
+
+                wave_names = {
+                    'sine': 'Sinusoidalna',
+                    'square': 'Kwadratowa',
+                    'sawtooth': 'Piłokształtna',
+                    'triangle': 'Trójkątna'
+                }
+
+                messagebox.showinfo("Zapisano ✓",
+                                    f"Konfiguracja TEST 2 AUTO zapisana:\n\n"
+                                    f"• Fala: {wave_names[wave_type]}\n"
+                                    f"• Zakres: {freq_min}-{freq_max} Hz\n"
+                                    f"• Czas: {duration} sek\n"
+                                    f"• Głośność: {volume}%")
+                update_preview2()
+
+            except ValueError:
+                messagebox.showerror("Błąd", "Nieprawidłowe wartości!")
+            except Exception as e:
+                messagebox.showerror("Błąd", f"Nie można zapisać:\n{str(e)}")
+
+        tk.Button(test2_auto_tab,
+                  text="💾 ZAPISZ KONFIGURACJĘ",
+                  command=save_test2_config,
+                  bg=self.COLORS['button_bg'],
+                  fg=self.COLORS['button_fg'],
+                  activebackground=self.COLORS['button_hover'],
+                  activeforeground=self.COLORS['button_hover_fg'],
+                  bd=2,
+                  relief=tk.SOLID,
+                  font=('Arial', 9, 'bold'),
+                  width=30,
+                  height=2).pack(pady=15)
+
         footer_frame = tk.Frame(eng_window, bg=self.COLORS['bg_main'], padx=15, pady=15)
         footer_frame.pack(fill=tk.X)
 
@@ -677,6 +929,9 @@ class AudioMultiTool:
         add_window.geometry("350x150")
         add_window.configure(bg=self.COLORS['bg_main'])
         add_window.resizable(False, False)
+        add_window.transient(self.root)  # Okno zawsze nad rodzicem
+        add_window.lift()
+        add_window.focus_force()
         add_window.grab_set()
 
         tk.Label(add_window,
@@ -1023,7 +1278,7 @@ class AudioMultiTool:
             except:
                 pass
 
-        geometry = self.config_mgr.get('app.window_geometry.tone_generator', '580x680')
+        geometry = self.config_mgr.get('app.window_geometry.tone_generator', '580x820')
 
         try:
             test_window = tk.Toplevel(self.root)
@@ -1044,7 +1299,10 @@ class AudioMultiTool:
                 except:
                     pass
 
-            test = ToneGeneratorTest(test_frame, close_test)
+            device_serial = getattr(self, 'scanned_device', None)
+            test = ToneGeneratorTest(test_frame, close_test,
+                                     operator_hrid=self.logged_operator,
+                                     device_serial=device_serial)
 
             self.resource_mgr.register_window(test_window, 'tone_generator')
             self.current_test_window = test_window

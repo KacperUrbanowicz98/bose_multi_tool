@@ -101,6 +101,56 @@ class TestReporter:
         print(f"✓ Raport zapisany: {test_id}")
         return test_id
 
+    def save_test2_result(self, operator_hrid, device_serial, wave_type,
+                          freq_range, duration, volume, status, interrupted, notes=""):
+        """
+        Zapisuje wynik TEST 2 (Tone Generator Auto Test)
+
+        Args:
+            operator_hrid: HRID operatora (str)
+            device_serial: Numer seryjny urządzenia (str) - może być None
+            wave_type: Typ fali (str) - "Sinusoidalna", "Kwadratowa", etc.
+            freq_range: Zakres częstotliwości (str) - "20-20000"
+            duration: Czas trwania w sekundach (int)
+            volume: Głośność testu (int)
+            status: Status testu - "PASS" / "FAIL" / "INTERRUPTED" (str)
+            interrupted: Czy przerwano (bool)
+            notes: Dodatkowe notatki (str)
+        """
+        now = datetime.now()
+        test_id = f"TEST2_{now.strftime('%Y%m%d_%H%M%S')}"
+        date_str = now.strftime('%Y-%m-%d')
+        time_str = now.strftime('%H:%M:%S')
+
+        # Jeśli brak numeru seryjnego
+        if not device_serial:
+            device_serial = "N/A"
+
+        row = [
+            test_id,
+            "Tone Generator Auto Test",
+            device_serial,
+            operator_hrid,
+            date_str,
+            time_str,
+            duration,
+            f"{wave_type} ({freq_range} Hz)",  # Kolumna Audio File - używamy dla opisu fali
+            status,
+            "N/A",  # Steps Completed - nie dotyczy TEST 2
+            "N/A",  # Total Steps - nie dotyczy TEST 2
+            f"{volume}%",  # Volumes Tested - tu głośność stała
+            "Yes" if interrupted else "No",
+            notes
+        ]
+
+        # Dopisz do pliku CSV
+        with open(self.csv_file, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(row)
+
+        print(f"✓ Raport TEST 2 zapisany: {test_id}")
+        return test_id
+
 
 # Singleton - jedna instancja dla całej aplikacji
 _reporter_instance = None

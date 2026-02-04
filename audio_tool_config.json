@@ -3,9 +3,9 @@
         "version": "1.0.0",
         "first_run": false,
         "window_geometry": {
-            "main": "550x700+52+52",
+            "main": "550x700+130+130",
             "music_player": "650x720",
-            "tone_generator": "580x680",
+            "tone_generator": "580x720",
             "stereotest": "580x750"
         }
     },
@@ -14,10 +14,12 @@
     },
     "operators": {
         "hrid_list": [
-            "OP001",
-            "OP002",
-            "OP003",
             "ADMIN",
+            "45090",
+            "45030",
+            "45031",
+            "12101316",
+            "45707",
             "TEST"
         ]
     },
