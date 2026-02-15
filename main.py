@@ -1324,8 +1324,6 @@ class AudioMultiTool:
             ("TEST 1", "Test głośności", self.open_music_player_test, 'normal'),
             ("TEST 2", "Generator Częstotliwości", self.open_tone_generator_test, 'normal'),
             ('TEST 3', 'Test Stereo', self.open_stereo_test, 'normal'),
-            ("TEST 4", "Przejazd Częstotliwości", self.show_under_construction, 'disabled'),
-            ("TEST 5", "Szum Różowy/Biały", self.show_under_construction, 'disabled')
         ]
 
         for i, (title, subtitle, cmd, state) in enumerate(tests):
@@ -1595,6 +1593,7 @@ class AudioMultiTool:
             test_window.title("Test 2: Generator Częstotliwości")
             test_window.geometry(geometry)
             test_window.configure(bg=self.COLORS['bg_main'])
+            test_window.attributes('-topmost', True)  # <-- DODAJ
 
             from tone_generator_test import ToneGeneratorTest
 
@@ -1611,7 +1610,8 @@ class AudioMultiTool:
 
             test = ToneGeneratorTest(test_frame, close_test,
                                      operator_hrid=self.logged_operator,
-                                     device_serial=device_serial)  # <-- Użyj zeskanowanego
+                                     device_serial=device_serial,
+                                     scan_callback=self.scan_serial_number)  # <-- DODAJ
 
             self.resource_mgr.register_window(test_window, 'tone_generator')
             self.current_test_window = test_window

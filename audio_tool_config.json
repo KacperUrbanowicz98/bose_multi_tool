@@ -68,5 +68,12 @@
         "duration_per_channel": 5,
         "frequency": 1000,
         "volume": 50
+    },
+    "test2_auto": {
+        "wave_type": "sine",
+        "freq_min": 20,
+        "freq_max": 20000,
+        "duration": 11,
+        "volume": 50
     }
 }
