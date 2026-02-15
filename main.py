@@ -1644,10 +1644,12 @@ class AudioMultiTool:
             test_window.title("Test 3: Stereo (Lewa/Prawa)")
             test_window.geometry(geometry)
             test_window.configure(bg=self.COLORS['bg_main'])
+            test_window.attributes('-topmost', True)
 
             test = StereoTest(test_window,
                               operator_hrid=self.logged_operator,
-                              device_serial=device_serial)  # <-- Użyj zeskanowanego
+                              device_serial=device_serial,
+                              scan_callback=self.scan_serial_number)
 
             def close_test():
                 try:

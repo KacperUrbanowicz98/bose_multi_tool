@@ -14,11 +14,12 @@ from test_reporter import get_test_reporter
 
 
 class StereoTest:
-    def __init__(self, window, operator_hrid="UNKNOWN", device_serial=None):
+    def __init__(self, window, operator_hrid="UNKNOWN", device_serial=None, scan_callback=None):
         self.window = window
         self.window.configure(bg='#FFFFFF')
         self.operator_hrid = operator_hrid
         self.device_serial = device_serial
+        self.scan_callback = scan_callback  # <-- DODANE
 
         # === KOLORY BOSE WHITE THEME ===
         self.colors = {
@@ -478,7 +479,7 @@ class StereoTest:
                 # Test zakończony
                 self.save_test_report(status="PASS", interrupted=False)
                 self.stop_auto_test(save_report=False)
-                messagebox.showinfo("Auto Test", "Test automatyczny zakończony pomyślnie!\n\nRaport został zapisany.")
+                self.show_auto_close_message()  # <-- ZMIENIONE
                 return
 
             channel = channels[self.current_test_index]
@@ -559,6 +560,81 @@ class StereoTest:
         except Exception as e:
             print(f"Błąd zapisu raportu TEST 3: {e}")
 
+    # === NOWE FUNKCJE DO SKANOWANIA ===
+
+    def show_auto_close_message(self):
+        """Pokazuje komunikat który znika po 3 sekundach i restartuje test"""
+        msg_window = tk.Toplevel(self.window)
+        msg_window.title("Test zakończony")
+        msg_window.geometry("400x150")
+        msg_window.configure(bg='#FFFFFF')
+        msg_window.resizable(False, False)
+        msg_window.attributes('-topmost', True)
+        msg_window.transient(self.window)
+
+        # Wyśrodkuj
+        msg_window.update_idletasks()
+        x = (msg_window.winfo_screenwidth() // 2) - (400 // 2)
+        y = (msg_window.winfo_screenheight() // 2) - (150 // 2)
+        msg_window.geometry(f"+{x}+{y}")
+
+        tk.Label(msg_window,
+                 text="✓ Test zakończony pomyślnie!",
+                 font=('Arial', 12, 'bold'),
+                 bg='#FFFFFF',
+                 fg='#4CAF50').pack(pady=(30, 10))
+
+        tk.Label(msg_window,
+                 text="Raport został zapisany.\nOkno zamknie się za 3 sekundy...",
+                 font=('Arial', 9),
+                 bg='#FFFFFF',
+                 fg='#666666').pack(pady=(0, 20))
+
+        # Zamknij okno po 3 sekundach i zrestartuj skanowanie
+        msg_window.after(3000, lambda: self.restart_test_after_success(msg_window))
+
+    def restart_test_after_success(self, msg_window):
+        """Zamyka komunikat i pokazuje okno skanowania dla kolejnego urządzenia"""
+        try:
+            msg_window.destroy()
+
+            # Sprawdź czy mamy callback do skanowania
+            if self.scan_callback:
+                new_serial = self.scan_callback("TEST 3 - Test Stereo")
+
+                if new_serial:
+                    # Zaktualizuj numer seryjny
+                    self.device_serial = new_serial
+                    print(f"[DEBUG] Nowy numer seryjny TEST3: {new_serial}")
+
+                    # Resetuj stan testu
+                    self.current_test_index = 0
+                    self.auto_test_start_time = None
+
+                    # PRZYWRÓĆ FOCUS NA OKNO TESTU
+                    self.window.lift()
+                    self.window.focus_force()
+
+                    # Pokaż komunikat
+                    messagebox.showinfo("Gotowy", f"S/N: {new_serial}\n\nMożesz uruchomić kolejny test AUTO.")
+
+                    # Ponownie przywróć focus
+                    self.window.lift()
+                    self.window.focus_force()
+                else:
+                    # Operator kliknął WYJDŹ - zamknij test
+                    self.window.destroy()
+            else:
+                # Brak callbacka - zamknij test
+                self.window.destroy()
+
+        except Exception as e:
+            print(f"[DEBUG] Błąd restartu TEST3: {e}")
+            try:
+                self.window.destroy()
+            except:
+                pass
+
     # === ORIGINAL METHODS (bez zmian) ===
 
     def _bind_hover(self, button):
@@ -602,7 +678,7 @@ class StereoTest:
 
     def play_channel(self, channel, restart=False):
         """Odtwarza dźwięk na wybranym kanale"""
-        if self.is_playing and not restart and not self.auto_test_running:  # <-- ZMIEŃ WARUNEK
+        if self.is_playing and not restart and not self.auto_test_running:
             return
 
         # Zatrzymaj poprzedni dźwięk
@@ -639,7 +715,8 @@ class StereoTest:
                 # Utwórz stereo (2 kanały)
                 if channel == 'left':
                     stereo_tone = np.zeros((len(tone), 2), dtype=np.int16)
-                    stereo_tone[:, 0] = tone  # Lewy kanał                elif channel == 'right':
+                    stereo_tone[:, 0] = tone  # Lewy kanał
+                elif channel == 'right':
                     stereo_tone = np.zeros((len(tone), 2), dtype=np.int16)
                     stereo_tone[:, 1] = tone  # Prawy kanał
                 else:  # both

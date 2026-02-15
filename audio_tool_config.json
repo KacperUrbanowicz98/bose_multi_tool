@@ -3,7 +3,7 @@
         "version": "1.0.0",
         "first_run": false,
         "window_geometry": {
-            "main": "550x700+156+156",
+            "main": "550x700+52+52",
             "music_player": "650x720",
             "tone_generator": "580x720",
             "stereotest": "580x850"
@@ -20,7 +20,13 @@
             "45031",
             "12101316",
             "45707",
-            "TEST"
+            "45708",
+            "12101332",
+            "12101722",
+            "12101725",
+            "TEST",
+            "KACPERURBANOWICZ",
+            "KRZYSZTOFGACKOWSKI"
         ]
     },
     "audio": {
