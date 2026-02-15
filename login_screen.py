@@ -155,8 +155,8 @@ class LoginScreen:
         footer_frame.pack(side=tk.BOTTOM, pady=(30, 0))
 
         tk.Label(footer_frame,
-                 text="Kacper Urbanowicz | Rafał Kobylecki",
-                 font=('Arial', 7),
+                 text="Autor: Kacper Urbanowicz",
+                 font=('Arial', 8),
                  bg=self.COLORS['bg_main'],
                  fg=self.COLORS['text_secondary']).pack()
 

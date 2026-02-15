@@ -450,7 +450,7 @@ class AudioMultiTool:
         test1_auto_tab = tk.Frame(notebook, bg=self.COLORS['bg_main'], padx=15, pady=15)
         notebook.add(test1_auto_tab, text="TEST 1 AUTO")
 
-        # === DODAJ KOLOROWY PASEK NA GÓRZE === 👇
+        # === DODAJ KOLOROWY PASEK NA GÓRZE ===
         auto_indicator = tk.Frame(test1_auto_tab, bg='#4CAF50', height=5)  # Zielony pasek
         auto_indicator.pack(fill='x', pady=(0, 10))
 
@@ -471,13 +471,18 @@ class AudioMultiTool:
                  fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
 
         current_duration = self.config_mgr.get('test1_auto.step_duration', 5)
+        print(f"[DEBUG] Wczytano z config: {current_duration}")
+
+        # Stwórz zmienną Tkinter która WYMUSZA wartość
+        duration_var = tk.StringVar(value=str(current_duration))
+
         duration_spinbox = tk.Spinbox(duration_frame,
                                       from_=1,
                                       to=60,
+                                      textvariable=duration_var,
                                       width=10,
                                       font=('Arial', 10))
-        duration_spinbox.delete(0, tk.END)
-        duration_spinbox.insert(0, str(current_duration))
+
         duration_spinbox.pack(pady=(0, 10), padx=10, anchor='w')
 
         # === POZIOMY GŁOŚNOŚCI ===
@@ -528,7 +533,6 @@ class AudioMultiTool:
                                                      maxvalue=100)
                 if new_vol:
                     volumes_listbox.insert(tk.END, f"{new_vol}%")
-                    update_preview()
             except:
                 pass
 
@@ -536,7 +540,6 @@ class AudioMultiTool:
             selected = volumes_listbox.curselection()
             if selected:
                 volumes_listbox.delete(selected[0])
-                update_preview()
             else:
                 messagebox.showwarning("Brak wyboru", "Wybierz poziom do usunięcia!")
 
@@ -583,28 +586,31 @@ class AudioMultiTool:
         preview_label.pack(padx=10, pady=(0, 10), anchor='w')
 
         def update_preview():
+            print(f"[DEBUG] update_preview() wywołane!")
             try:
-                duration = int(duration_spinbox.get())
+                duration_value = duration_var.get()
+                print(f"[DEBUG] Wartość ze zmiennej: '{duration_value}'")
+                duration = int(duration_value)
+                print(f"[DEBUG] Duration jako int: {duration}")
+
                 num_steps = volumes_listbox.size()
                 total_time = duration * num_steps
 
-                preview_text = f"• Liczba kroków: {num_steps}\n"
-                preview_text += f"• Czas każdego kroku: {duration} sek\n"
-                preview_text += f"• Łączny czas testu: {total_time} sek ({total_time // 60} min {total_time % 60} sek)"
-
+                preview_text = f"⏱ Liczba kroków: {num_steps}\n"
+                preview_text += f"⏱ Czas każdego kroku: {duration} sek\n"
+                preview_text += f"⏱ Łączny czas testu: {total_time} sek ({total_time // 60} min {total_time % 60} sek)"
                 preview_label.config(text=preview_text)
-            except:
+                print(f"[DEBUG] Podgląd zaktualizowany: {total_time}s")
+            except Exception as e:
+                print(f"[DEBUG] BŁĄD w update_preview: {e}")
                 preview_label.config(text="⚠ Błąd w konfiguracji")
-
-        # Odśwież podgląd przy zmianie czasu
-        duration_spinbox.config(command=lambda: update_preview())
-        update_preview()  # Początkowy podgląd
 
         # === PRZYCISK ZAPISU ===
         def save_test1_config():
             try:
                 # Pobierz wartości
-                duration = int(duration_spinbox.get())
+                duration = int(duration_var.get())
+                print(f"[DEBUG] Zapisuję duration: {duration}")
 
                 if duration < 1 or duration > 60:
                     messagebox.showerror("Błąd", "Czas trwania musi być między 1 a 60 sekund!")
@@ -639,6 +645,7 @@ class AudioMultiTool:
             except Exception as e:
                 messagebox.showerror("Błąd", f"Nie można zapisać:\n{str(e)}")
 
+        # Przycisk ZAPISZ
         tk.Button(test1_auto_tab,
                   text="💾 ZAPISZ KONFIGURACJĘ",
                   command=save_test1_config,
