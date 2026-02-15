@@ -46,9 +46,9 @@ class TestReporter:
             writer = csv.writer(f)
             writer.writerow(headers)
 
-    def save_test1_result(self, operator_hrid, device_serial, audio_file,
-                          status, completed_steps, total_steps,
-                          volumes_tested, duration, interrupted=False, notes=""):
+    def save_test1_result(self, operator_hrid, device_serial, test_duration,
+                          audio_file, status, total_steps, completed_steps,
+                          volume_levels, interrupted, notes=""):
         """
         Zapisuje wynik TEST 1 (Music Player Auto Test)
 
@@ -59,7 +59,7 @@ class TestReporter:
             status: Status testu - "PASS" / "FAIL" / "INTERRUPTED" (str)
             completed_steps: Ile kroków ukończono (int)
             total_steps: Łącznie kroków (int)
-            volumes_tested: Lista głośności [10, 20, 30, ...] (list)
+            volume_tested: Lista głośności [10, 20, 30, ...] (list)
             duration: Czas trwania w sekundach (int)
             interrupted: Czy przerwano (bool)
             notes: Dodatkowe notatki (str)
@@ -70,7 +70,7 @@ class TestReporter:
         time_str = now.strftime('%H:%M:%S')
 
         # Konwertuj listę głośności na string
-        volumes_str = ','.join([f"{v}%" for v in volumes_tested])
+        volumes_str = ','.join([f"{v}%" for v in volume_levels])
 
         # Jeśli brak numeru seryjnego
         if not device_serial:
@@ -83,7 +83,7 @@ class TestReporter:
             operator_hrid,
             date_str,
             time_str,
-            duration,
+            test_duration,  # <-- ZMIEŃ z 'duration' na 'test_duration'
             audio_file,
             status,
             completed_steps,

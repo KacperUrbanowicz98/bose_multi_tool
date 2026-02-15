@@ -10,16 +10,17 @@ import os
 import json
 import time
 from mutagen import File
-from test_reporter import get_test_reporter
 from datetime import datetime
+from test_reporter import get_test_reporter
+
 
 
 class MusicPlayerTest:
-    def __init__(self, window, operator_hrid="UNKNOWN", device_serial=None):
+    def __init__(self, window, operator_hrid="UNKNOWN", device_serial=None, scan_callback=None):
         self.window = window
         self.operator_hrid = operator_hrid
         self.device_serial = device_serial
-
+        self.scan_callback = scan_callback  # <-- DODAJ
 
         self.window.configure(bg='#FFFFFF')
 
@@ -866,8 +867,10 @@ class MusicPlayerTest:
         if self.auto_test_step >= len(self.auto_test_volumes):
             # Test zakończony - zapisz raport
             self.save_test_report(status="PASS", interrupted=False)
-            self.stop_auto_test(save_report=False)  # <-- DODAJ save_report=False
-            messagebox.showinfo("Auto Test", "Test automatyczny zakończony pomyślnie!\n\nRaport został zapisany.")
+            self.stop_auto_test(save_report=False)
+
+            # Pokaż komunikat który zniknie po 3 sekundach
+            self.show_auto_close_message()
             return
 
         # Pobierz poziom głośności dla tego kroku
@@ -970,17 +973,90 @@ class MusicPlayerTest:
             reporter.save_test1_result(
                 operator_hrid=self.operator_hrid,
                 device_serial=self.device_serial,
+                test_duration=duration,
                 audio_file=audio_file,
                 status=status,
-                completed_steps=completed_steps,
                 total_steps=total_steps,
-                volumes_tested=volumes_tested,
-                duration=duration,
+                completed_steps=completed_steps,
+                volume_levels=volumes_tested,  # <-- Ta zmienna jest zdefiniowana wyżej
                 interrupted=interrupted,
                 notes=""
             )
+            print(f"✓ Raport TEST 1 zapisany")
         except Exception as e:
             print(f"Błąd zapisu raportu: {e}")
+
+    def show_auto_close_message(self):
+        """Pokazuje komunikat który znika po 3 sekundach i restartuje test"""
+        msg_window = tk.Toplevel(self.window)
+        msg_window.title("Test zakończony")
+        msg_window.geometry("400x150")
+        msg_window.configure(bg=self.colors['bg_main'])
+        msg_window.resizable(False, False)
+        msg_window.transient(self.window)
+
+        # Wyśrodkuj
+        msg_window.update_idletasks()
+        x = (msg_window.winfo_screenwidth() // 2) - (400 // 2)
+        y = (msg_window.winfo_screenheight() // 2) - (150 // 2)
+        msg_window.geometry(f"+{x}+{y}")
+
+        tk.Label(msg_window,
+                 text="✓ Test zakończony pomyślnie!",
+                 font=('Arial', 12, 'bold'),
+                 bg=self.colors['bg_main'],
+                 fg='#4CAF50').pack(pady=(30, 10))
+
+        tk.Label(msg_window,
+                 text="Raport został zapisany.\nOkno zamknie się za 3 sekundy...",
+                 font=('Arial', 9),
+                 bg=self.colors['bg_main'],
+                 fg=self.colors['text_secondary']).pack(pady=(0, 20))
+
+        # Zamknij okno po 3 sekundach i zrestartuj skanowanie
+        msg_window.after(3000, lambda: self.restart_test_after_success(msg_window))
+
+    def restart_test_after_success(self, msg_window):
+        """Zamyka komunikat i pokazuje okno skanowania dla kolejnego urządzenia"""
+        try:
+            msg_window.destroy()
+
+            # Sprawdź czy mamy callback do skanowania
+            if self.scan_callback:
+                new_serial = self.scan_callback("TEST 1 - Odtwarzacz Muzyki")
+
+                if new_serial:
+                    # Zaktualizuj numer seryjny
+                    self.device_serial = new_serial
+                    print(f"[DEBUG] Nowy numer seryjny: {new_serial}")
+
+                    # Resetuj stan testu
+                    self.auto_test_step = 0
+                    self.auto_test_start_time = None
+
+                    # PRZYWRÓĆ FOCUS NA OKNO TESTU
+                    self.window.lift()
+                    self.window.focus_force()
+
+                    # Odśwież interface
+                    self.refresh_playlist_display()
+
+                    # Pokaż komunikat (MUSI być po lift/focus!)
+                    messagebox.showinfo("Gotowy", f"S/N: {new_serial}\n\nMożesz uruchomić kolejny test AUTO.")
+
+                    # Ponownie przywróć focus (bo messagebox zabiera focus)
+                    self.window.lift()
+                    self.window.focus_force()
+                else:
+                    # Operator kliknął WYJDŹ - zamknij test
+                    self.close_window()
+            else:
+                # Brak callbacka - zamknij test
+                self.close_window()
+
+        except Exception as e:
+            print(f"[DEBUG] Błąd restartu: {e}")
+            self.close_window()
 
     def close_window(self):
         """Zamyka okno"""

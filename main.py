@@ -18,6 +18,7 @@ from stereo_test import StereoTest
 
 
 
+
 class AudioMultiTool:
     """Główna klasa aplikacji - Bose White Style"""
 
@@ -1378,6 +1379,10 @@ class AudioMultiTool:
                  bg=self.COLORS['bg_main'],
                  fg=self.COLORS['text_secondary']).pack()
 
+        # Na końcu create_main_menu() dodaj:
+        # Okno główne zawsze pod testami
+        self.root.attributes('-topmost', False)
+
     def logout(self):
         """Wylogowanie - powrót do ekranu logowania"""
         if messagebox.askyesno("Wylogowanie", f"Wylogować operatora {self.logged_operator}?"):
@@ -1412,8 +1417,128 @@ class AudioMultiTool:
 
             login = LoginScreen(self.root, on_login_success)
 
+    def scan_serial_number(self, test_name):
+        """
+        Wyświetla okno do skanowania numeru seryjnego przed testem
+
+        Args:
+            test_name: Nazwa testu (np. "TEST 1", "TEST 2", "TEST 3")
+
+        Returns:
+            str lub None: Numer seryjny lub None jeśli anulowano
+        """
+        scan_window = tk.Toplevel(self.root)
+        scan_window.title(f"{test_name} - Skanowanie")
+        scan_window.geometry("450x220")
+        scan_window.configure(bg=self.COLORS['bg_main'])
+        scan_window.resizable(False, False)
+        scan_window.attributes('-topmost', True)  # <-- DODAJ TO!
+        scan_window.transient(self.root)
+        scan_window.grab_set()
+
+        # Wyśrodkuj okno
+        scan_window.update_idletasks()
+        x = (scan_window.winfo_screenwidth() // 2) - (450 // 2)
+        y = (scan_window.winfo_screenheight() // 2) - (220 // 2)
+        scan_window.geometry(f"+{x}+{y}")
+
+        tk.Label(scan_window,
+                 text=f"📦 {test_name}",
+                 font=('Arial', 14, 'bold'),
+                 bg=self.COLORS['bg_main'],
+                 fg=self.COLORS['text_primary']).pack(pady=(20, 5))
+
+        tk.Label(scan_window,
+                 text="Zeskanuj numer seryjny urządzenia",
+                 font=('Arial', 10),
+                 bg=self.COLORS['bg_main'],
+                 fg=self.COLORS['text_secondary']).pack(pady=(0, 20))
+
+        entry_frame = tk.Frame(scan_window, bg=self.COLORS['bg_main'])
+        entry_frame.pack(pady=10)
+
+        tk.Label(entry_frame,
+                 text="S/N:",
+                 font=('Arial', 10, 'bold'),
+                 bg=self.COLORS['bg_main'],
+                 fg=self.COLORS['text_primary']).pack(side='left', padx=(0, 10))
+
+        serial_var = tk.StringVar()
+        serial_entry = tk.Entry(entry_frame,
+                                textvariable=serial_var,
+                                font=('Arial', 12),
+                                width=25,
+                                bg=self.COLORS['bg_card'],
+                                fg=self.COLORS['text_primary'],
+                                insertbackground=self.COLORS['text_primary'],
+                                bd=2,
+                                relief=tk.SOLID,
+                                justify='center')
+        serial_entry.pack(side='left')
+        serial_entry.focus()
+
+        result = {'serial': None}
+
+        def confirm():
+            serial = serial_var.get().strip().upper()
+            print(f"[DEBUG] Potwierdzam S/N: '{serial}'")
+            if not serial:
+                messagebox.showwarning("Brak numeru", "Numer seryjny nie może być pusty!")
+                serial_entry.focus()
+                return
+            print(f"[DEBUG] Ustawiam result['serial'] = {serial}")
+            result['serial'] = serial
+            print(f"[DEBUG] Zamykam okno skanowania")
+            scan_window.destroy()
+
+        def cancel():
+            print(f"[DEBUG] Anulowano skanowanie")
+            scan_window.destroy()
+
+        # Binding Enter - MUSI BYĆ PRZED przyciskami
+        serial_entry.bind('<Return>', lambda e: confirm())
+
+        btn_frame = tk.Frame(scan_window, bg=self.COLORS['bg_main'])
+        btn_frame.pack(pady=20)
+
+        tk.Button(btn_frame,
+                  text="✓ ZATWIERDŹ",
+                  command=confirm,
+                  bg=self.COLORS['button_bg'],
+                  fg=self.COLORS['button_fg'],
+                  activebackground=self.COLORS['button_hover'],
+                  activeforeground=self.COLORS['button_hover_fg'],
+                  bd=2,
+                  relief=tk.SOLID,
+                  font=('Arial', 9, 'bold'),
+                  width=12).pack(side='left', padx=3)
+
+        tk.Button(btn_frame,
+                  text="← WYJDŹ",
+                  command=cancel,
+                  bg=self.COLORS['bg_main'],
+                  fg=self.COLORS['text_secondary'],
+                  activebackground=self.COLORS['button_hover'],
+                  activeforeground=self.COLORS['button_hover_fg'],
+                  bd=2,
+                  relief=tk.SOLID,
+                  font=('Arial', 9),
+                  width=12).pack(side='left', padx=3)
+
+        # Czekaj aż okno się zamknie
+        scan_window.wait_window()
+
+        # Zwróć wynik
+        print(f"[DEBUG] Zwracam result['serial']: {result['serial']}")
+        return result['serial']
+
     def open_music_player_test(self):
         """Otwiera Test 1"""
+        # SKANOWANIE NUMERU SERYJNEGO
+        device_serial = self.scan_serial_number("TEST 1 - Odtwarzacz Muzyki")
+        if not device_serial:
+            return  # Anulowano skanowanie
+
         if self.current_test_window is not None:
             try:
                 self.resource_mgr.unregister_window(self.current_test_window)
@@ -1428,12 +1553,16 @@ class AudioMultiTool:
             test_window.title("Test 1: Odtwarzacz Muzyki")
             test_window.geometry(geometry)
             test_window.configure(bg=self.COLORS['bg_main'])
+            test_window.attributes('-topmost', True)  # <-- DODAJ TO!
 
             from music_player_test import MusicPlayerTest
-            device_serial = getattr(self, 'scanned_device', None)
-            print(
-                f"[DEBUG] Przekazuję do TEST1 - Operator: {self.logged_operator}, Device: {device_serial}")  # <-- DODAJ
-            test = MusicPlayerTest(test_window, operator_hrid=self.logged_operator, device_serial=device_serial)
+
+            print(f"[DEBUG] Przekazuję do TEST1 - Operator: {self.logged_operator}, Device: {device_serial}")
+
+            test = MusicPlayerTest(test_window,
+                                   operator_hrid=self.logged_operator,
+                                   device_serial=device_serial,
+                                   scan_callback=self.scan_serial_number)  # <-- DODAJ
 
             self.resource_mgr.register_window(test_window, 'music_player')
             self.current_test_window = test_window
@@ -1447,6 +1576,11 @@ class AudioMultiTool:
 
     def open_tone_generator_test(self):
         """Otwiera Test 2"""
+        # SKANOWANIE NUMERU SERYJNEGO
+        device_serial = self.scan_serial_number("TEST 2 - Generator Częstotliwości")
+        if not device_serial:
+            return  # Anulowano skanowanie
+
         if self.current_test_window is not None:
             try:
                 self.resource_mgr.unregister_window(self.current_test_window)
@@ -1475,10 +1609,9 @@ class AudioMultiTool:
                 except:
                     pass
 
-            device_serial = getattr(self, 'scanned_device', None)
             test = ToneGeneratorTest(test_frame, close_test,
                                      operator_hrid=self.logged_operator,
-                                     device_serial=device_serial)
+                                     device_serial=device_serial)  # <-- Użyj zeskanowanego
 
             self.resource_mgr.register_window(test_window, 'tone_generator')
             self.current_test_window = test_window
@@ -1492,6 +1625,11 @@ class AudioMultiTool:
 
     def open_stereo_test(self):
         """Otwiera Test 3 - Stereo"""
+        # SKANOWANIE NUMERU SERYJNEGO
+        device_serial = self.scan_serial_number("TEST 3 - Test Stereo")
+        if not device_serial:
+            return  # Anulowano skanowanie
+
         if self.current_test_window is not None:
             try:
                 self.resource_mgr.unregister_window(self.current_test_window)
@@ -1499,7 +1637,7 @@ class AudioMultiTool:
             except:
                 pass
 
-        geometry = self.config_mgr.get('app.window_geometry.stereotest', '500x750')
+        geometry = self.config_mgr.get('app.window_geometry.stereo_test', '500x750')
 
         try:
             test_window = tk.Toplevel(self.root)
@@ -1507,10 +1645,9 @@ class AudioMultiTool:
             test_window.geometry(geometry)
             test_window.configure(bg=self.COLORS['bg_main'])
 
-            device_serial = getattr(self, 'scanned_device', None)
             test = StereoTest(test_window,
                               operator_hrid=self.logged_operator,
-                              device_serial=device_serial)
+                              device_serial=device_serial)  # <-- Użyj zeskanowanego
 
             def close_test():
                 try:
@@ -1522,7 +1659,8 @@ class AudioMultiTool:
                     pass
 
             test_window.protocol("WM_DELETE_WINDOW", close_test)
-            self.resource_mgr.register_window(test_window, 'stereotest')
+
+            self.resource_mgr.register_window(test_window, 'stereo_test')
             self.current_test_window = test_window
 
         except Exception as e:
