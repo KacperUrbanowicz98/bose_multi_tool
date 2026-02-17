@@ -20,7 +20,7 @@ class MusicPlayerTest:
         self.window = window
         self.operator_hrid = operator_hrid
         self.device_serial = device_serial
-        self.scan_callback = scan_callback  # <-- DODAJ
+        self.scan_callback = scan_callback
 
         self.window.configure(bg='#FFFFFF')
 
@@ -551,10 +551,10 @@ class MusicPlayerTest:
 
         if self.playlist:
             self.play_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
-            self.auto_start_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])  # <-- DODAJ
+            self.auto_start_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
         else:
             self.play_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
-            self.auto_start_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])  # <-- DODAJ
+            self.auto_start_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
 
 
     def load_and_play(self, filepath):
@@ -832,7 +832,7 @@ class MusicPlayerTest:
 
         self.auto_test_running = True
         self.auto_test_step = 0
-        self.auto_test_start_time = datetime.now()  # <-- DODAJ
+        self.auto_test_start_time = datetime.now()
 
         # Przyciski odtwarzania
         self.play_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])

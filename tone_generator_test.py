@@ -19,7 +19,7 @@ class ToneGeneratorTest:
         self.return_callback = return_callback
         self.operator_hrid = operator_hrid
         self.device_serial = device_serial
-        self.scan_callback = scan_callback  # <-- DODANE
+        self.scan_callback = scan_callback
 
         # === KOLORY BOSE WHITE THEME ===
         self.colors = {
@@ -385,7 +385,7 @@ class ToneGeneratorTest:
 
         self.play_btn = tk.Button(
             control_frame,
-            text="▶ ODTWÓRZ",
+            text="▶ PLAY",
             width=10,
             font=("Arial", 9, "bold"),
             bg=self.colors['button_bg'],

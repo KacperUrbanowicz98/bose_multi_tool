@@ -451,7 +451,7 @@ class AudioMultiTool:
         test1_auto_tab = tk.Frame(notebook, bg=self.COLORS['bg_main'], padx=15, pady=15)
         notebook.add(test1_auto_tab, text="TEST 1 AUTO")
 
-        # === DODAJ KOLOROWY PASEK NA GÓRZE ===
+
         auto_indicator = tk.Frame(test1_auto_tab, bg='#4CAF50', height=5)  # Zielony pasek
         auto_indicator.pack(fill='x', pady=(0, 10))
 
@@ -1377,7 +1377,7 @@ class AudioMultiTool:
                  bg=self.COLORS['bg_main'],
                  fg=self.COLORS['text_secondary']).pack()
 
-        # Na końcu create_main_menu() dodaj:
+
         # Okno główne zawsze pod testami
         self.root.attributes('-topmost', False)
 
@@ -1430,7 +1430,7 @@ class AudioMultiTool:
         scan_window.geometry("450x220")
         scan_window.configure(bg=self.COLORS['bg_main'])
         scan_window.resizable(False, False)
-        scan_window.attributes('-topmost', True)  # <-- DODAJ TO!
+        scan_window.attributes('-topmost', True)
         scan_window.transient(self.root)
         scan_window.grab_set()
 
@@ -1551,7 +1551,7 @@ class AudioMultiTool:
             test_window.title("Test 1: Odtwarzacz Muzyki")
             test_window.geometry(geometry)
             test_window.configure(bg=self.COLORS['bg_main'])
-            test_window.attributes('-topmost', True)  # <-- DODAJ TO!
+            test_window.attributes('-topmost', True)
 
             from music_player_test import MusicPlayerTest
 
@@ -1560,7 +1560,7 @@ class AudioMultiTool:
             test = MusicPlayerTest(test_window,
                                    operator_hrid=self.logged_operator,
                                    device_serial=device_serial,
-                                   scan_callback=self.scan_serial_number)  # <-- DODAJ
+                                   scan_callback=self.scan_serial_number)
 
             self.resource_mgr.register_window(test_window, 'music_player')
             self.current_test_window = test_window
@@ -1593,7 +1593,7 @@ class AudioMultiTool:
             test_window.title("Test 2: Generator Częstotliwości")
             test_window.geometry(geometry)
             test_window.configure(bg=self.COLORS['bg_main'])
-            test_window.attributes('-topmost', True)  # <-- DODAJ
+            test_window.attributes('-topmost', True)
 
             from tone_generator_test import ToneGeneratorTest
 
@@ -1637,7 +1637,7 @@ class AudioMultiTool:
             except:
                 pass
 
-        geometry = self.config_mgr.get('app.window_geometry.stereo_test', '500x750')
+        geometry = self.config_mgr.get('app.window_geometry.stereo_test', '500x850')
 
         try:
             test_window = tk.Toplevel(self.root)

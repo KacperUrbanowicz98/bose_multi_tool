@@ -100,10 +100,12 @@ class ConfigManager:
         self.config = {
             "app": {
                 "version": "1.0.0",
-                "first_run": True,
+                "first_run": False,
                 "window_geometry": {
-                    "music_player": "650x580",
-                    "tone_generator": "580x680"
+                    "main": "550x700",
+                    "music_player": "650x720",
+                    "tone_generator": "580x820",
+                    "stereo_test": "500x750"
                 }
             },
             "security": {
@@ -111,11 +113,17 @@ class ConfigManager:
             },
             "operators": {
                 "hrid_list": [
-                    "OP001",
-                    "OP002",
-                    "OP003",
-                    "ADMIN",
-                    "TEST"
+                    "45090",
+                    "45030",
+                    "45031",
+                    "12101316",
+                    "45707",
+                    "45708",
+                    "12101332",
+                    "12101722",
+                    "12101725",
+                    "KACPERURBANOWICZ",
+                    "KRZYSZTOFGACKOWSKI"
                 ]
             },
             "audio": {
@@ -143,6 +151,22 @@ class ConfigManager:
             "ui": {
                 "theme": "white",
                 "confirm_exit": True
+            },
+            "test1_auto": {
+                "step_duration": 2,
+                "volume_levels": [10, 20, 30, 40, 50, 60, 70, 80]
+            },
+            "test2_auto": {
+                "wave_type": "sine",
+                "freq_min": 20,
+                "freq_max": 20000,
+                "duration": 11,
+                "volume": 50
+            },
+            "test3_auto": {
+                "duration_per_channel": 5,
+                "frequency": 1000,
+                "volume": 50
             }
         }
         self.save_config()
