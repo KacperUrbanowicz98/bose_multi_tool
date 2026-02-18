@@ -468,7 +468,7 @@ class ToneGeneratorTest:
             'triangle': 'Trójkątna'
         }
         self.auto_description_label.config(
-            text=f"Przejazd: {self.auto_freq_min} Hz → {self.auto_freq_max} Hz ({self.auto_duration}s, {wave_names.get(self.auto_wave_type, 'Sinusoidalna')})"
+            text=f"Przejazd: {self.auto_freq_min} Hz → {self.auto_freq_max} Hz → {self.auto_freq_min} Hz ({self.auto_duration}s, {wave_names.get(self.auto_wave_type, 'Sinusoidalna')})"
         )
 
         # Zatrzymaj normalny test jeśli działa
@@ -562,16 +562,25 @@ class ToneGeneratorTest:
             # Test zakończony
             self.save_test_report(status="PASS", interrupted=False)
             self.stop_auto_test(save_report=False)
-            self.show_auto_close_message()  # <-- ZMIENIONE
+            self.show_auto_close_message()
             return
 
-        # Oblicz aktualną częstotliwość (interpolacja logarytmiczna dla lepszego efektu)
+        # Oblicz aktualną częstotliwość (interpolacja logarytmiczna)
         progress = elapsed / total_duration
 
-        # Logarytmiczna interpolacja (brzmi lepiej dla audio)
+        # Logarytmiczna interpolacja
         log_min = np.log10(self.auto_freq_min)
         log_max = np.log10(self.auto_freq_max)
-        current_freq = int(10 ** (log_min + progress * (log_max - log_min)))
+
+        # Pierwsza połowa: 20Hz → 20kHz, druga połowa: 20kHz → 20Hz
+        if progress <= 0.5:
+            # Idzie w górę 20Hz → 20kHz
+            sweep_progress = progress * 2  # 0.0 → 1.0
+            current_freq = int(10 ** (log_min + sweep_progress * (log_max - log_min)))
+        else:
+            # Idzie w dół 20kHz → 20Hz
+            sweep_progress = (progress - 0.5) * 2  # 0.0 → 1.0
+            current_freq = int(10 ** (log_max - sweep_progress * (log_max - log_min)))
 
         # Aktualizuj częstotliwość
         self.frequency = current_freq
