@@ -3,8 +3,8 @@
         "version": "1.0.0",
         "first_run": false,
         "window_geometry": {
-            "main": "550x700+130+130",
-            "music_player": "650x720",
+            "main": "550x700+208+208",
+            "music_player": "650x865",
             "tone_generator": "580x720",
             "stereotest": "580x950"
         }
@@ -35,7 +35,9 @@
     "music_player": {
         "default_volume": 50,
         "max_volume": 82,
-        "playlist": [],
+        "playlist": [
+            "C:/Users/kurba/Downloads/Utwór testowy nr 1.mp3"
+        ],
         "equalizer": {
             "60Hz": 0,
             "250Hz": 0,

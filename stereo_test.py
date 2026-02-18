@@ -605,7 +605,6 @@ class StereoTest:
                 if new_serial:
                     # Zaktualizuj numer seryjny
                     self.device_serial = new_serial
-                    print(f"[DEBUG] Nowy numer seryjny TEST3: {new_serial}")
 
                     # Resetuj stan testu
                     self.current_test_index = 0

@@ -54,6 +54,10 @@ class MusicPlayerTest:
         self.update_job = None
         self.start_time = 0  # Czas startu utworu
         self.pause_pos = 0   # Pozycja przy pauzowaniu
+        # Fragment utworu
+        self.fragment_start = 0  # Sekunda startu fragmentu
+        self.fragment_end = 0  # Sekunda końca fragmentu
+        self.fragment_enabled = False  # Czy fragment jest aktywny
 
         # Zmienne auto testu
         self.auto_test_running = False
@@ -254,6 +258,125 @@ class MusicPlayerTest:
             width=12
         )
         self.clear_btn.pack(side=tk.LEFT, padx=2)
+
+        # === WYBÓR FRAGMENTU ===
+        self.fragment_frame = tk.LabelFrame(
+            main_frame,
+            text="✂ WYBÓR FRAGMENTU UTWORU",
+            font=('Arial', 8, 'bold'),
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_primary'],
+            bd=2,
+            relief=tk.SOLID
+        )
+        self.fragment_frame.pack(fill=tk.X, pady=(0, 12))
+
+        fragment_container = tk.Frame(self.fragment_frame, bg=self.colors['bg_main'])
+        fragment_container.pack(fill=tk.X, padx=8, pady=8)
+
+        # Checkbox - włącz/wyłącz fragment
+        self.fragment_var = tk.BooleanVar(value=False)
+        self.fragment_check = tk.Checkbutton(
+            fragment_container,
+            text="Użyj wybranego fragmentu",
+            variable=self.fragment_var,
+            command=self.toggle_fragment,
+            font=('Arial', 8),
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_primary'],
+            selectcolor=self.colors['bg_card'],
+            activebackground=self.colors['bg_main'],
+        )
+        self.fragment_check.pack(anchor='w', pady=(0, 5))
+
+        # START
+        start_row = tk.Frame(fragment_container, bg=self.colors['bg_main'])
+        start_row.pack(fill=tk.X, pady=2)
+
+        tk.Label(start_row,
+                 text="START:",
+                 font=('Arial', 8, 'bold'),
+                 bg=self.colors['bg_main'],
+                 fg=self.colors['text_primary'],
+                 width=6,
+                 anchor='w').pack(side='left')
+
+        self.start_slider = tk.Scale(
+            start_row,
+            from_=0,
+            to=100,
+            orient=tk.HORIZONTAL,
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_primary'],
+            troughcolor=self.colors['bg_card'],
+            highlightthickness=0,
+            showvalue=0,
+            command=self.update_fragment_start,
+            bd=0,
+            relief=tk.FLAT,
+            state=tk.DISABLED
+        )
+        self.start_slider.pack(side='left', fill=tk.X, expand=True, padx=5)
+
+        self.start_time_label = tk.Label(
+            start_row,
+            text="0:00",
+            font=('Arial', 8),
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_secondary'],
+            width=6
+        )
+        self.start_time_label.pack(side='left')
+
+        # END
+        end_row = tk.Frame(fragment_container, bg=self.colors['bg_main'])
+        end_row.pack(fill=tk.X, pady=2)
+
+        tk.Label(end_row,
+                 text="KONIEC:",
+                 font=('Arial', 8, 'bold'),
+                 bg=self.colors['bg_main'],
+                 fg=self.colors['text_primary'],
+                 width=6,
+                 anchor='w').pack(side='left')
+
+        self.end_slider = tk.Scale(
+            end_row,
+            from_=0,
+            to=100,
+            orient=tk.HORIZONTAL,
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_primary'],
+            troughcolor=self.colors['bg_card'],
+            highlightthickness=0,
+            showvalue=0,
+            command=self.update_fragment_end,
+            bd=0,
+            relief=tk.FLAT,
+            state=tk.DISABLED
+        )
+        self.end_slider.set(100)
+        self.end_slider.pack(side='left', fill=tk.X, expand=True, padx=5)
+
+        self.end_time_label = tk.Label(
+            end_row,
+            text="0:00",
+            font=('Arial', 8),
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_secondary'],
+            width=6
+        )
+        self.end_time_label.pack(side='left')
+
+        # Info o długości fragmentu
+        self.fragment_info_label = tk.Label(
+            fragment_container,
+            text="Załaduj utwór aby wybrać fragment",
+            font=('Arial', 8),
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_secondary']
+        )
+        self.fragment_info_label.pack(pady=(5, 0))
 
         # === AUTO TEST ===
         auto_test_frame = tk.LabelFrame(
@@ -727,6 +850,18 @@ class MusicPlayerTest:
                 # Oblicz aktualną pozycję od początku utworu
                 pos_sec = time.time() - self.start_time
 
+                # Jeśli fragment aktywny i auto test działa - zatrzymaj na końcu fragmentu
+                if (self.fragment_enabled and
+                        self.auto_test_running and
+                        pos_sec >= self.fragment_end):
+                    # Wróć do startu fragmentu
+                    pygame.mixer.music.stop()
+                    pygame.mixer.music.load(self.current_file)
+                    pygame.mixer.music.play(start=self.fragment_start)
+                    pygame.mixer.music.set_volume(self.volume / 82.0)
+                    self.start_time = time.time() - self.fragment_start
+                    pos_sec = self.fragment_start
+
                 # Aktualizuj pasek
                 if self.song_length > 0:
                     progress = (pos_sec / self.song_length) * 100
@@ -736,6 +871,24 @@ class MusicPlayerTest:
                     pos_ms = pygame.mixer.music.get_pos()
                     if pos_ms >= 0:
                         pos_sec = pos_ms / 1000.0
+
+                # Zaktualizuj suwaki fragmentu - TYLKO przy pierwszym załadowaniu
+                if self.song_length > 0:
+                    # Aktualizuj END tylko jeśli fragment NIE jest włączony
+                    # lub jeśli to nowy utwór (inny plik)
+                    if not self.fragment_enabled:
+                        self.fragment_start = 0
+                        self.fragment_end = self.song_length
+                        self.start_slider.set(0)
+                        self.end_slider.set(100)
+                        self.start_time_label.config(text="0:00")
+                        self.end_time_label.config(text=self.format_time(self.song_length))
+                        self.fragment_info_label.config(
+                            text=f"Długość utworu: {self.format_time(self.song_length)}"
+                        )
+                    else:
+                        # Fragment jest włączony - zachowaj pozycje suwaków!
+                        self.update_fragment_info()
 
                 # Formatuj czas
                 current_time = self.format_time(pos_sec)
@@ -828,6 +981,29 @@ class MusicPlayerTest:
             # Jeśli nic nie wybrano, ustaw pierwszy utwór
             self.current_index = 0
 
+        # Wczytaj długość utworu jeśli jeszcze nie wczytana
+        filepath = self.playlist[self.current_index]
+        if self.song_length == 0:
+            self.song_length = self.get_song_length(filepath)
+
+            if not self.fragment_enabled:
+                # Brak fragmentu - ustaw od początku do końca
+                self.fragment_start = 0
+                self.fragment_end = self.song_length
+                self.start_slider.set(0)
+                self.end_slider.set(100)
+                self.start_time_label.config(text="0:00")
+                self.end_time_label.config(
+                    text=self.format_time(self.song_length)
+                )
+            else:
+                # Fragment włączony - oblicz pozycje z suwaków
+                self.fragment_start = (self.start_slider.get() / 100) * self.song_length
+                self.fragment_end = (self.end_slider.get() / 100) * self.song_length
+                self.update_fragment_info()
+
+        print(f"[DEBUG] Fragment: {self.format_time(self.fragment_start)} → {self.format_time(self.fragment_end)}")
+
         # Zablokuj przyciski
 
         self.auto_test_running = True
@@ -896,7 +1072,29 @@ class MusicPlayerTest:
 
         # Jeśli pierwszy krok - załaduj i odtwórz
         if self.auto_test_step == 0:
-            self.load_and_play(self.playlist[self.current_index])
+            # Najpierw pobierz długość utworu jeśli jeszcze nie pobrana
+            filepath = self.playlist[self.current_index]
+            if self.song_length == 0:
+                self.song_length = self.get_song_length(filepath)
+
+                # Ustaw fragment_end jeśli jeszcze nie ustawiony
+                if self.fragment_end == 0:
+                    self.fragment_end = self.song_length
+                    self.end_slider.set(100)
+                    self.end_time_label.config(
+                        text=self.format_time(self.song_length)
+                    )
+
+            self.load_and_play(filepath)
+
+            # Jeśli fragment jest włączony - skocz do startu fragmentu
+            if self.fragment_enabled and self.fragment_start > 0:
+                pygame.mixer.music.stop()
+                pygame.mixer.music.load(filepath)
+                pygame.mixer.music.play(start=self.fragment_start)
+                pygame.mixer.music.set_volume(self.volume / 82.0)
+                self.start_time = time.time() - self.fragment_start
+                self.is_playing = True
 
         # DODAJ TU - ponownie zablokuj przyciski przewijania (bo load_and_play je odblokowało)
         if self.auto_test_running:
@@ -1057,6 +1255,79 @@ class MusicPlayerTest:
         except Exception as e:
             print(f"[DEBUG] Błąd restartu: {e}")
             self.close_window()
+
+    def toggle_fragment(self):
+        """Włącza/wyłącza wybór fragmentu"""
+        if self.fragment_var.get():
+            # Włącz suwaki
+            self.start_slider.config(state=tk.NORMAL)
+            self.end_slider.config(state=tk.NORMAL)
+            self.fragment_enabled = True
+            self.fragment_info_label.config(
+                fg=self.colors['text_primary']
+            )
+        else:
+            # Wyłącz suwaki
+            self.start_slider.config(state=tk.DISABLED)
+            self.end_slider.config(state=tk.DISABLED)
+            self.fragment_enabled = False
+            self.fragment_info_label.config(
+                fg=self.colors['text_secondary']
+            )
+        self.update_fragment_info()
+
+    def update_fragment_start(self, value):
+        """Aktualizuje czas startu fragmentu"""
+        if self.song_length > 0:
+            percent = float(value) / 100
+            self.fragment_start = self.song_length * percent
+
+            # Upewnij się że START < END
+            if self.fragment_start >= self.fragment_end:
+                self.fragment_start = max(0, self.fragment_end - 1)
+                self.start_slider.set(
+                    int((self.fragment_start / self.song_length) * 100)
+                )
+
+            self.start_time_label.config(
+                text=self.format_time(self.fragment_start)
+            )
+            self.update_fragment_info()
+
+    def update_fragment_end(self, value):
+        """Aktualizuje czas końca fragmentu"""
+        if self.song_length > 0:
+            percent = float(value) / 100
+            self.fragment_end = self.song_length * percent
+
+            # Upewnij się że END > START
+            if self.fragment_end <= self.fragment_start:
+                self.fragment_end = min(
+                    self.song_length, self.fragment_start + 1
+                )
+                self.end_slider.set(
+                    int((self.fragment_end / self.song_length) * 100)
+                )
+
+            self.end_time_label.config(
+                text=self.format_time(self.fragment_end)
+            )
+            self.update_fragment_info()
+
+    def update_fragment_info(self):
+        """Aktualizuje label z info o fragmencie"""
+        if self.song_length > 0:
+            length = self.fragment_end - self.fragment_start
+            if self.fragment_enabled:
+                self.fragment_info_label.config(
+                    text=f"Fragment: {self.format_time(self.fragment_start)} → {self.format_time(self.fragment_end)} (długość: {self.format_time(length)})",
+                    fg=self.colors['text_primary']
+                )
+            else:
+                self.fragment_info_label.config(
+                    text=f"Długość utworu: {self.format_time(self.song_length)}",
+                    fg=self.colors['text_secondary']
+                )
 
     def close_window(self):
         """Zamyka okno"""

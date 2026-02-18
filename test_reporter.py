@@ -185,7 +185,7 @@ class TestReporter:
             date_str,
             time_str,
             total_duration,
-            f"Tone {frequency}Hz (Left→Right→Both)",  # Audio File - opis testu
+            f"Tone {frequency}Hz (Left - Right Both)",  # Audio File - opis testu
             status,
             "3",  # Steps Completed - zawsze 3 kanały
             "3",  # Total Steps
