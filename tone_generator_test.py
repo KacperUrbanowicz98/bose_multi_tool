@@ -731,9 +731,6 @@ class ToneGeneratorTest:
                     self.parent_frame.winfo_toplevel().lift()
                     self.parent_frame.winfo_toplevel().focus_force()
 
-                    # Pokaż komunikat
-                    messagebox.showinfo("Gotowy", f"S/N: {new_serial}\n\nMożesz uruchomić kolejny test AUTO.")
-
                     # Ponownie przywróć focus
                     self.parent_frame.winfo_toplevel().lift()
                     self.parent_frame.winfo_toplevel().focus_force()

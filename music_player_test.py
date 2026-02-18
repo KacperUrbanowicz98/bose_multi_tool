@@ -1224,27 +1224,13 @@ class MusicPlayerTest:
                 new_serial = self.scan_callback("TEST 1 - Odtwarzacz Muzyki")
 
                 if new_serial:
-                    # Zaktualizuj numer seryjny
                     self.device_serial = new_serial
                     print(f"[DEBUG] Nowy numer seryjny: {new_serial}")
-
-                    # Resetuj stan testu
                     self.auto_test_step = 0
                     self.auto_test_start_time = None
-
-                    # PRZYWRÓĆ FOCUS NA OKNO TESTU
                     self.window.lift()
                     self.window.focus_force()
 
-                    # Odśwież interface
-                    self.refresh_playlist_display()
-
-                    # Pokaż komunikat (MUSI być po lift/focus!)
-                    messagebox.showinfo("Gotowy", f"S/N: {new_serial}\n\nMożesz uruchomić kolejny test AUTO.")
-
-                    # Ponownie przywróć focus (bo messagebox zabiera focus)
-                    self.window.lift()
-                    self.window.focus_force()
                 else:
                     # Operator kliknął WYJDŹ - zamknij test
                     self.close_window()
