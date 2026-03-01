@@ -1,0 +1,4 @@
+﻿Test ID,Test Type,Device Serial,Operator HRID,Date,Time,TEST1_Status,TEST1_Duration,TEST1_Audio_File,TEST1_Volumes,TEST2_Status,TEST2_Duration,TEST2_WaveType,TEST2_FreqRange,TEST3_Status,TEST3_Duration,TEST3_Channels,Overall_Status,Total_Duration,Interrupted,Notes
+COMBO_20260218_201718,COMBO Test (1+2+3),12,KACPERURBANOWICZ,2026-02-18,20:17:18,PASS,16,Utwór testowy nr 1.mp3,"10%,20%,30%,40%,50%,60%,70%,80%",PASS,10,sine,20-20000,PASS,15,5s per channel,PASS,45,No,
+COMBO_20260218_201816,COMBO Test (1+2+3),5,KACPERURBANOWICZ,2026-02-18,20:18:16,PASS,16,Utwór testowy nr 1.mp3,"10%,20%,30%,40%,50%,60%,70%,80%",PASS,10,sine,20-20000,PASS,15,5s per channel,PASS,45,No,
+COMBO_20260218_202120,COMBO Test (1+2+3),12,KACPERURBANOWICZ,2026-02-18,20:21:20,PASS,16,Utwór testowy nr 1.mp3,"10%,20%,30%,40%,50%,60%,70%,80%",PASS,10,sine,20-20000,PASS,15,5s per channel,PASS,45,No,

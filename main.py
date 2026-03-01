@@ -1324,6 +1324,7 @@ class AudioMultiTool:
             ("TEST 1", "Test głośności", self.open_music_player_test, 'normal'),
             ("TEST 2", "Generator Częstotliwości", self.open_tone_generator_test, 'normal'),
             ('TEST 3', 'Test Stereo', self.open_stereo_test, 'normal'),
+            ('TEST 4', 'COMBO Test (1+2+3)', self.open_combo_test, 'normal'),
         ]
 
         for i, (title, subtitle, cmd, state) in enumerate(tests):
@@ -1671,6 +1672,44 @@ class AudioMultiTool:
                 test_window.destroy()
             except:
                 pass
+
+    def open_combo_test(self):
+        """Otwiera COMBO test"""
+        from combo_test import ComboTest
+
+        # Skanuj numer seryjny
+        device_serial = self.scan_serial_number("COMBO TEST")
+        if not device_serial:
+            return
+
+        # Pobierz geometrię
+        geometry = self.config_mgr.get(
+            'app.window_geometry.combo_test', '700x750'
+        )
+
+        try:
+            test_window = tk.Toplevel(self.root)
+            test_window.title("Test 4: COMBO Test")
+            test_window.geometry(geometry)
+            test_window.configure(bg='#FFFFFF')
+            test_window.attributes('-topmost', True)
+
+            def close_test():
+                test_window.destroy()
+
+            ComboTest(
+                test_window,
+                operator_hrid=self.logged_operator,
+                device_serial=device_serial,
+                scan_callback=self.scan_serial_number,
+                close_callback=close_test
+            )
+
+            test_window.protocol("WM_DELETE_WINDOW", close_test)
+
+        except Exception as e:
+            messagebox.showerror("Blad", f"Nie mozna otworzyc COMBO testu:\n{e}")
+            print(f"[ERROR] COMBO test: {e}")
 
     def show_under_construction(self):
         """Testy w budowie"""
