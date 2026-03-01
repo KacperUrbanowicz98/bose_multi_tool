@@ -3,7 +3,7 @@
         "version": "1.0.0",
         "first_run": false,
         "window_geometry": {
-            "main": "550x700+78+78",
+            "main": "550x700+182+182",
             "music_player": "650x865",
             "tone_generator": "580x720",
             "stereotest": "580x950"
@@ -36,7 +36,8 @@
         "default_volume": 50,
         "max_volume": 82,
         "playlist": [
-            "C:/Users/kurba/Downloads/Utwór testowy nr 1.mp3"
+            "C:/Users/kurba/Downloads/Utwór testowy nr 1.mp3",
+            "C:/Users/kurba/Downloads/Nieuczesana ZAKLCIE (videoo.info).mp3"
         ],
         "equalizer": {
             "60Hz": 0,
@@ -44,7 +45,9 @@
             "1kHz": 0,
             "4kHz": 0,
             "16kHz": 0
-        }
+        },
+        "fragment_start_pct": 24,
+        "fragment_end_pct": 100
     },
     "tone_generator": {
         "default_frequency": 1000,

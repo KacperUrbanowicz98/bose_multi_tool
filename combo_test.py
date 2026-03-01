@@ -49,7 +49,7 @@ class ComboTest:
         # TEST 1 config
         self.t1_step_duration = config_mgr.get('test1_auto.step_duration', 2)
         self.t1_volume_levels = config_mgr.get('test1_auto.volume_levels',
-                                                [10, 20, 30, 40, 50, 60, 70, 80])
+                                               [10, 20, 30, 40, 50, 60, 70, 80])
         # TEST 2 config
         self.t2_freq_min = config_mgr.get('test2_auto.freq_min', 20)
         self.t2_freq_max = config_mgr.get('test2_auto.freq_max', 20000)
@@ -65,17 +65,22 @@ class ComboTest:
         # === STAN ===
         self.combo_running = False
         self.combo_start_time = None
-        self.current_phase = None  # 'test1', 'test2', 'test3', 'break'
+        self.current_phase = None
         self.combo_job = None
         self.interrupted = False
 
-        # Playlist / fragment
-        self.playlist = []
+        # Playlist / fragment - ładowane z configu (zarządza ENG)
+        saved_playlist = config_mgr.get('music_player.playlist', [])
+        self.playlist = [f for f in saved_playlist if os.path.exists(f)]
         self.current_index = 0
         self.song_length = 0
         self.fragment_start = 0
         self.fragment_end = 0
         self.fragment_enabled = False
+
+        # Wczytaj fragment z configu
+        self._frag_start_pct = config_mgr.get('music_player.fragment_start_pct', 0)
+        self._frag_end_pct = config_mgr.get('music_player.fragment_end_pct', 100)
 
         # Audio
         self.is_playing = False
@@ -103,7 +108,6 @@ class ComboTest:
         self.t3_channel_index = 0
         self.t3_job = None
 
-        # Inicjalizacja pygame
         if not pygame.mixer.get_init():
             pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
 
@@ -134,7 +138,7 @@ class ComboTest:
 
         self.sn_label = tk.Label(
             header,
-            text=f"Operator: {self.operator_hrid}  |  S/N: {self.device_serial or 'N/A'}",
+            text=f"Operator: {self.operator_hrid} | S/N: {self.device_serial or 'N/A'}",
             font=('Arial', 8),
             bg=self.colors['bg_main'],
             fg=self.colors['text_secondary']
@@ -183,7 +187,6 @@ class ComboTest:
                                         fg=self.colors['text_secondary'])
         self.t1_status_label.pack()
 
-        # Strzałka
         tk.Label(status_grid, text="→",
                  font=('Arial', 14, 'bold'),
                  bg=self.colors['bg_main'],
@@ -212,7 +215,6 @@ class ComboTest:
                                         fg=self.colors['text_secondary'])
         self.t2_status_label.pack()
 
-        # Strzałka
         tk.Label(status_grid, text="→",
                  font=('Arial', 14, 'bold'),
                  bg=self.colors['bg_main'],
@@ -241,129 +243,32 @@ class ComboTest:
                                         fg=self.colors['text_secondary'])
         self.t3_status_label.pack()
 
-        # === WYBÓR FRAGMENTU ===
-        fragment_frame = tk.LabelFrame(main,
-                                       text="WYBOR FRAGMENTU UTWORU (TEST 1)",
-                                       font=('Arial', 9, 'bold'),
-                                       bg=self.colors['bg_main'],
-                                       fg=self.colors['text_primary'],
-                                       bd=2, relief=tk.SOLID)
-        fragment_frame.pack(fill='x', pady=(0, 10))
+        # === INFO UTWÓR / FRAGMENT (tylko do odczytu) ===
+        info_frame = tk.Frame(main, bg='#F5F5F5', relief=tk.SOLID, bd=1)
+        info_frame.pack(fill='x', pady=(0, 10))
 
-        frag_container = tk.Frame(fragment_frame, bg=self.colors['bg_main'])
-        frag_container.pack(fill='x', padx=8, pady=8)
+        # Wyświetl aktualny utwór z configu
+        track_name = "Brak - skonfiguruj w Trybie Inżynieryjnym"
+        if self.playlist:
+            track_name = os.path.basename(self.playlist[0])
 
-        # Playlist
-        playlist_row = tk.Frame(frag_container, bg=self.colors['bg_main'])
-        playlist_row.pack(fill='x', pady=(0, 5))
+        frag_info_text = "Cały utwór"
+        if self._frag_start_pct != 0 or self._frag_end_pct != 100:
+            frag_info_text = f"Fragment: {self._frag_start_pct}% → {self._frag_end_pct}%"
 
-        tk.Label(playlist_row, text="Utwór:",
+        tk.Label(info_frame,
+                 text=f"Utwór: {track_name}",
                  font=('Arial', 8, 'bold'),
-                 bg=self.colors['bg_main'],
+                 bg='#F5F5F5',
                  fg=self.colors['text_primary'],
-                 width=8, anchor='w').pack(side='left')
+                 anchor='w').pack(fill='x', padx=10, pady=(6, 1))
 
-        self.track_label = tk.Label(playlist_row,
-                                    text="Brak wybranego utworu",
-                                    font=('Arial', 8),
-                                    bg=self.colors['bg_main'],
-                                    fg=self.colors['text_secondary'],
-                                    anchor='w')
-        self.track_label.pack(side='left', fill='x', expand=True)
-
-        self.load_track_btn = tk.Button(playlist_row,
-                                        text="WYBIERZ UTWOR",
-                                        font=('Arial', 7, 'bold'),
-                                        bg=self.colors['button_bg'],
-                                        fg=self.colors['button_fg'],
-                                        activebackground=self.colors['button_active'],
-                                        activeforeground=self.colors['button_active_fg'],
-                                        bd=1, relief=tk.SOLID,
-                                        command=self.load_track)
-        self.load_track_btn.pack(side='right', padx=(5, 0))
-
-        # Checkbox fragment
-        self.fragment_var = tk.BooleanVar(value=False)
-        self.fragment_check = tk.Checkbutton(frag_container,
-                                             text="Uzyj wybranego fragmentu",
-                                             variable=self.fragment_var,
-                                             command=self.toggle_fragment,
-                                             font=('Arial', 8),
-                                             bg=self.colors['bg_main'],
-                                             fg=self.colors['text_primary'],
-                                             selectcolor=self.colors['bg_card'],
-                                             activebackground=self.colors['bg_main'],
-                                             state=tk.DISABLED)
-        self.fragment_check.pack(anchor='w', pady=(0, 3))
-
-        # START suwak
-        start_row = tk.Frame(frag_container, bg=self.colors['bg_main'])
-        start_row.pack(fill='x', pady=1)
-
-        tk.Label(start_row, text="START:",
-                 font=('Arial', 8, 'bold'),
-                 bg=self.colors['bg_main'],
-                 fg=self.colors['text_primary'],
-                 width=8, anchor='w').pack(side='left')
-
-        self.start_slider = tk.Scale(start_row,
-                                     from_=0, to=100,
-                                     orient=tk.HORIZONTAL,
-                                     bg=self.colors['bg_main'],
-                                     fg=self.colors['text_primary'],
-                                     troughcolor=self.colors['bg_card'],
-                                     highlightthickness=0,
-                                     showvalue=0,
-                                     command=self.update_fragment_start,
-                                     bd=0, relief=tk.FLAT,
-                                     state=tk.DISABLED)
-        self.start_slider.pack(side='left', fill='x', expand=True, padx=5)
-
-        self.start_time_label = tk.Label(start_row, text="0:00",
-                                         font=('Arial', 8),
-                                         bg=self.colors['bg_main'],
-                                         fg=self.colors['text_secondary'],
-                                         width=5)
-        self.start_time_label.pack(side='left')
-
-        # END suwak
-        end_row = tk.Frame(frag_container, bg=self.colors['bg_main'])
-        end_row.pack(fill='x', pady=1)
-
-        tk.Label(end_row, text="KONIEC:",
-                 font=('Arial', 8, 'bold'),
-                 bg=self.colors['bg_main'],
-                 fg=self.colors['text_primary'],
-                 width=8, anchor='w').pack(side='left')
-
-        self.end_slider = tk.Scale(end_row,
-                                   from_=0, to=100,
-                                   orient=tk.HORIZONTAL,
-                                   bg=self.colors['bg_main'],
-                                   fg=self.colors['text_primary'],
-                                   troughcolor=self.colors['bg_card'],
-                                   highlightthickness=0,
-                                   showvalue=0,
-                                   command=self.update_fragment_end,
-                                   bd=0, relief=tk.FLAT,
-                                   state=tk.DISABLED)
-        self.end_slider.set(100)
-        self.end_slider.pack(side='left', fill='x', expand=True, padx=5)
-
-        self.end_time_label = tk.Label(end_row, text="0:00",
-                                       font=('Arial', 8),
-                                       bg=self.colors['bg_main'],
-                                       fg=self.colors['text_secondary'],
-                                       width=5)
-        self.end_time_label.pack(side='left')
-
-        # Info fragment
-        self.fragment_info_label = tk.Label(frag_container,
-                                            text="Zaladuj utwor aby wybrac fragment",
-                                            font=('Arial', 8),
-                                            bg=self.colors['bg_main'],
-                                            fg=self.colors['text_secondary'])
-        self.fragment_info_label.pack(pady=(4, 0))
+        tk.Label(info_frame,
+                 text=f"{frag_info_text}  |  Playlista i fragment konfigurowane przez ENG",
+                 font=('Arial', 7),
+                 bg='#F5F5F5',
+                 fg=self.colors['text_secondary'],
+                 anchor='w').pack(fill='x', padx=10, pady=(0, 6))
 
         # === STATUS / PROGRESS ===
         progress_frame = tk.LabelFrame(main,
@@ -417,7 +322,6 @@ class ComboTest:
                                   command=self.stop_combo_test)
         self.stop_btn.pack(side='left', padx=5)
 
-        # Powrót
         tk.Button(main,
                   text="← POWROT DO MENU",
                   font=('Arial', 8),
@@ -428,138 +332,29 @@ class ComboTest:
                   bd=1, relief=tk.SOLID,
                   command=self.back_to_menu).pack(pady=(0, 10))
 
-    # ========================
-    # === WYBOR FRAGMENTU ===
-    # ========================
-
-    def load_track(self):
-        """Otwiera dialog wyboru pliku audio"""
-        from tkinter import filedialog
-        filepath = filedialog.askopenfilename(
-            title="Wybierz utwór do testu",
-            filetypes=[
-                ("Pliki audio", "*.mp3 *.wav *.ogg *.flac"),
-                ("Wszystkie pliki", "*.*")
-            ]
-        )
-        if filepath:
-            self.playlist = [filepath]
-            self.current_index = 0
-            filename = os.path.basename(filepath)
-            self.track_label.config(text=filename,
-                                    fg=self.colors['text_primary'])
-
-            # Pobierz długość utworu
-            self.song_length = self.get_song_length(filepath)
-
-            if self.song_length > 0:
-                self.fragment_end = self.song_length
-                self.fragment_start = 0
-                self.start_slider.set(0)
-                self.end_slider.set(100)
-                self.start_time_label.config(text="0:00")
-                self.end_time_label.config(
-                    text=self.format_time(self.song_length)
-                )
-                self.fragment_check.config(state=tk.NORMAL)
-                self.fragment_info_label.config(
-                    text=f"Dlugosc utworu: {self.format_time(self.song_length)}"
-                )
-
-            print(f"[COMBO] Zaladowano utwor: {filename} ({self.format_time(self.song_length)})")
-
-    def get_song_length(self, filepath):
-        """Pobiera długość pliku audio w sekundach"""
-        try:
-            pygame.mixer.music.load(filepath)
-            # Spróbuj uzyskać długość przez mutagen jeśli dostępny
-            try:
-                from mutagen import File as MutagenFile
-                audio = MutagenFile(filepath)
-                if audio and audio.info:
-                    return audio.info.length
-            except ImportError:
-                pass
-
-            # Fallback: odtwórz i zmierz
-            temp_sound = pygame.mixer.Sound(filepath)
-            return temp_sound.get_length()
-        except Exception as e:
-            print(f"[COMBO] Blad pobierania dlugosci: {e}")
-            return 0
-
-    def format_time(self, seconds):
-        """Formatuje sekundy do MM:SS"""
-        seconds = int(seconds)
-        m = seconds // 60
-        s = seconds % 60
-        return f"{m}:{s:02d}"
-
-    def toggle_fragment(self):
-        """Włącza/wyłącza wybór fragmentu"""
-        if self.fragment_var.get():
-            self.start_slider.config(state=tk.NORMAL)
-            self.end_slider.config(state=tk.NORMAL)
-            self.fragment_enabled = True
-        else:
-            self.start_slider.config(state=tk.DISABLED)
-            self.end_slider.config(state=tk.DISABLED)
-            self.fragment_enabled = False
-            self.fragment_start = 0
-            self.fragment_end = self.song_length
-            self.start_slider.set(0)
-            self.end_slider.set(100)
-        self.update_fragment_info()
-
-    def update_fragment_start(self, value):
-        """Aktualizuje czas startu fragmentu"""
-        if self.song_length > 0:
-            self.fragment_start = self.song_length * (float(value) / 100)
-            if self.fragment_start >= self.fragment_end:
-                self.fragment_start = max(0, self.fragment_end - 1)
-                self.start_slider.set(
-                    int((self.fragment_start / self.song_length) * 100)
-                )
-            self.start_time_label.config(text=self.format_time(self.fragment_start))
-            self.update_fragment_info()
-
-    def update_fragment_end(self, value):
-        """Aktualizuje czas końca fragmentu"""
-        if self.song_length > 0:
-            self.fragment_end = self.song_length * (float(value) / 100)
-            if self.fragment_end <= self.fragment_start:
-                self.fragment_end = min(self.song_length, self.fragment_start + 1)
-                self.end_slider.set(
-                    int((self.fragment_end / self.song_length) * 100)
-                )
-            self.end_time_label.config(text=self.format_time(self.fragment_end))
-            self.update_fragment_info()
-
-    def update_fragment_info(self):
-        """Aktualizuje info o fragmencie"""
-        if self.song_length > 0:
-            if self.fragment_enabled:
-                length = self.fragment_end - self.fragment_start
-                self.fragment_info_label.config(
-                    text=f"Fragment: {self.format_time(self.fragment_start)} → {self.format_time(self.fragment_end)} (dlugosc: {self.format_time(length)})",
-                    fg=self.colors['text_primary']
-                )
-            else:
-                self.fragment_info_label.config(
-                    text=f"Dlugosc utworu: {self.format_time(self.song_length)}",
-                    fg=self.colors['text_secondary']
-                )
-
     # ======================
     # === COMBO TEST FLOW ===
     # ======================
 
     def start_combo_test(self):
         """Startuje cały COMBO test"""
-        # Sprawdź czy utwór jest załadowany
         if not self.playlist:
             messagebox.showwarning("Brak utworu",
-                                   "Wybierz utwor do testu przed uruchomieniem!")
+                                   "Brak pliku audio w playliście!\n"
+                                   "Dodaj pliki w Trybie Inżynieryjnym → Playlista & Fragmenty.")
+            return
+
+        # Odśwież config przed startem
+        config_mgr = get_config_manager()
+        config_mgr.reload_config()
+        saved_playlist = config_mgr.get('music_player.playlist', [])
+        self.playlist = [f for f in saved_playlist if os.path.exists(f)]
+        self._frag_start_pct = config_mgr.get('music_player.fragment_start_pct', 0)
+        self._frag_end_pct = config_mgr.get('music_player.fragment_end_pct', 100)
+
+        if not self.playlist:
+            messagebox.showwarning("Brak pliku",
+                                   "Żaden plik z playlisty nie istnieje na dysku!")
             return
 
         # Resetuj wyniki
@@ -570,29 +365,17 @@ class ComboTest:
         self.combo_start_time = datetime.now()
         self.combo_running = True
 
-        # Resetuj statusy w GUI
         self.set_test_status(1, 'waiting')
         self.set_test_status(2, 'waiting')
         self.set_test_status(3, 'waiting')
 
-        # Zablokuj przyciski
         self.start_btn.config(state=tk.DISABLED,
                               bg=self.colors['bg_card'],
                               fg=self.colors['text_secondary'])
         self.stop_btn.config(state=tk.NORMAL)
-        self.load_track_btn.config(state=tk.DISABLED)
-        self.fragment_check.config(state=tk.DISABLED)
-        self.start_slider.config(state=tk.DISABLED)
-        self.end_slider.config(state=tk.DISABLED)
 
         print(f"[COMBO] START - S/N: {self.device_serial}")
 
-        # Oblicz pozycje fragmentu z suwaków
-        if self.fragment_enabled and self.song_length > 0:
-            self.fragment_start = (self.start_slider.get() / 100) * self.song_length
-            self.fragment_end = (self.end_slider.get() / 100) * self.song_length
-
-        # Start TEST 1
         self.run_test1()
 
     def set_test_status(self, test_num, status):
@@ -619,7 +402,6 @@ class ComboTest:
             label.config(text="PRZERWANY", fg=self.colors['orange'])
             frame.config(bg='#FFF3E0')
 
-        # Zaktualizuj kolory labelek wewnątrz frame
         for widget in frame.winfo_children():
             if widget != label:
                 widget.config(bg=frame.cget('bg'))
@@ -636,7 +418,6 @@ class ComboTest:
         self.set_test_status(1, 'running')
         self.phase_label.config(text="TEST 1: Music Player", fg=self.colors['blue'])
 
-        # Pobierz parametry
         volume_levels = self.t1_volume_levels
         step_duration = self.t1_step_duration
         total_steps = len(volume_levels)
@@ -644,8 +425,23 @@ class ComboTest:
         self.t1_current_step = 0
         self.t1_volume_levels_copy = volume_levels[:]
 
-        # Załaduj utwór
         filepath = self.playlist[self.current_index]
+
+        # Oblicz fragment z configu
+        if self.song_length == 0:
+            self.song_length = self.get_song_length(filepath)
+
+        if self._frag_start_pct == 0 and self._frag_end_pct == 100:
+            self.fragment_enabled = False
+            self.fragment_start = 0
+            self.fragment_end = self.song_length
+        else:
+            self.fragment_enabled = True
+            self.fragment_start = (self._frag_start_pct / 100) * self.song_length
+            self.fragment_end = (self._frag_end_pct / 100) * self.song_length
+
+        print(f"[COMBO] Fragment: {self.format_time(self.fragment_start)} → {self.format_time(self.fragment_end)}")
+
         try:
             pygame.mixer.music.load(filepath)
             if self.fragment_enabled and self.fragment_start > 0:
@@ -667,12 +463,10 @@ class ComboTest:
         audio_file = os.path.basename(filepath)
 
         def t1_step():
-            """Jeden krok TEST 1"""
             if not self.combo_running:
                 return
 
             if self.t1_current_step >= total_steps:
-                # TEST 1 zakończony
                 pygame.mixer.music.stop()
                 self.is_playing = False
                 duration = int((datetime.now() - self.test1_start_time).total_seconds())
@@ -684,12 +478,9 @@ class ComboTest:
                 }
                 self.set_test_status(1, 'pass')
                 print(f"[COMBO] TEST 1 PASS ({duration}s)")
-
-                # Przerwa 2 sekundy przed TEST 2
                 self.start_break(2, self.run_test2)
                 return
 
-            # Ustaw głośność
             vol = self.t1_volume_levels_copy[self.t1_current_step]
             pygame.mixer.music.set_volume(vol / 82.0)
 
@@ -697,7 +488,6 @@ class ComboTest:
                 text=f"Krok {self.t1_current_step + 1}/{total_steps} | Glosnosc: {vol}% | Czas: {step_duration}s"
             )
 
-            # Jeśli fragment włączony - sprawdź czy nie wyszliśmy poza fragment
             if self.fragment_enabled:
                 current_pos = pygame.mixer.music.get_pos() / 1000.0 + self.fragment_start
                 if current_pos >= self.fragment_end:
@@ -709,7 +499,6 @@ class ComboTest:
             self.t1_current_step += 1
             self.combo_job = self.window.after(step_duration * 1000, t1_step)
 
-        # Start pierwszego kroku
         t1_step()
 
     # ==============
@@ -726,7 +515,6 @@ class ComboTest:
 
         start_time = time.time()
         end_time = start_time + self.t2_duration
-
         self.t2_sound = None
 
         def sweep_step():
@@ -738,7 +526,6 @@ class ComboTest:
             total_duration = end_time - start_time
 
             if current_time >= end_time:
-                # TEST 2 zakończony
                 if self.t2_sound:
                     self.t2_sound.stop()
                 duration = int((datetime.now() - self.test2_start_time).total_seconds())
@@ -750,12 +537,9 @@ class ComboTest:
                 }
                 self.set_test_status(2, 'pass')
                 print(f"[COMBO] TEST 2 PASS ({duration}s)")
-
-                # Przerwa 2 sekundy przed TEST 3
                 self.start_break(2, self.run_test3)
                 return
 
-            # Oblicz częstotliwość
             progress = elapsed / total_duration
             log_min = np.log10(self.t2_freq_min)
             log_max = np.log10(self.t2_freq_max)
@@ -772,7 +556,6 @@ class ComboTest:
                 text=f"Czestotliwosc: {current_freq} Hz | Pozostalo: {remaining}s"
             )
 
-            # Generuj i odtwórz dźwięk
             if self.t2_sound:
                 self.t2_sound.stop()
 
@@ -822,7 +605,6 @@ class ComboTest:
 
         def play_next_channel():
             if not self.combo_running or self.t3_channel_index >= len(channels):
-                # TEST 3 zakończony
                 self.t3_stop_sound = True
                 pygame.mixer.stop()
                 duration = int((datetime.now() - self.test3_start_time).total_seconds())
@@ -833,8 +615,6 @@ class ComboTest:
                 }
                 self.set_test_status(3, 'pass')
                 print(f"[COMBO] TEST 3 PASS ({duration}s)")
-
-                # Zakończ cały COMBO test
                 self.finish_combo(interrupted=False)
                 return
 
@@ -842,15 +622,13 @@ class ComboTest:
             channel_names = {'left': 'Lewy', 'right': 'Prawy', 'both': 'Oba'}
 
             self.progress_label.config(
-                text=f"Kanalal: {channel_names[channel]} ({self.t3_channel_index + 1}/3)"
+                text=f"Kanal: {channel_names[channel]} ({self.t3_channel_index + 1}/3)"
             )
 
-            # Zatrzymaj poprzedni dźwięk
             self.t3_stop_sound = True
             pygame.mixer.stop()
             time.sleep(0.05)
 
-            # Uruchom nowy wątek dźwięku
             self.t3_stop_sound = False
             self.t3_sound_thread = threading.Thread(
                 target=self.play_stereo_channel,
@@ -927,17 +705,14 @@ class ComboTest:
         self.combo_running = False
         self.interrupted = interrupted
 
-        # Zatrzymaj wszystkie dźwięki
         pygame.mixer.stop()
         pygame.mixer.music.stop()
         self.t3_stop_sound = True
 
-        # Oblicz łączny czas
         total_duration = 0
         if self.combo_start_time:
             total_duration = int((datetime.now() - self.combo_start_time).total_seconds())
 
-        # Uzupełnij brakujące dane jeśli przerwano
         if not self.test1_data:
             self.test1_data = {
                 'status': 'INTERRUPTED', 'duration': 0,
@@ -955,7 +730,6 @@ class ComboTest:
                 'duration_per_channel': self.t3_duration_per_channel
             }
 
-        # Zapisz raport
         reporter = get_test_reporter()
         test_id, overall_status = reporter.save_combo_result(
             operator_hrid=self.operator_hrid,
@@ -967,7 +741,6 @@ class ComboTest:
             interrupted=interrupted
         )
 
-        # Zaktualizuj GUI
         if overall_status == "PASS":
             self.phase_label.config(text="✓ COMBO TEST ZAKONCZONY - PASS",
                                     fg=self.colors['green'])
@@ -987,16 +760,13 @@ class ComboTest:
                               bg=self.colors['button_bg'],
                               fg=self.colors['button_fg'])
         self.stop_btn.config(state=tk.DISABLED)
-        self.load_track_btn.config(state=tk.NORMAL)
-        self.fragment_check.config(state=tk.NORMAL if self.playlist else tk.DISABLED)
 
         print(f"[COMBO] ZAKOŃCZONY - {overall_status} | {test_id}")
 
-        # Pokaż okno skanowania nowego S/N
         self.window.after(3000, self.show_complete_message)
 
     def show_complete_message(self):
-        """Pokazuje komunikat zakończenia i skanuje nowy S/N"""
+        """Pokazuje komunikat zakończenia"""
         msg_window = tk.Toplevel(self.window)
         msg_window.title("Test zakończony")
         msg_window.geometry("400x150")
@@ -1031,12 +801,10 @@ class ComboTest:
 
             if self.scan_callback:
                 new_serial = self.scan_callback("COMBO TEST")
-
                 if new_serial:
                     self.device_serial = new_serial
                     print(f"[COMBO] Nowy S/N: {new_serial}")
 
-                    # Resetuj wyniki
                     self.test1_data = {}
                     self.test2_data = {}
                     self.test3_data = {}
@@ -1048,16 +816,11 @@ class ComboTest:
                         fg=self.colors['text_primary']
                     )
                     self.progress_label.config(text="")
-
-                    # ZAKTUALIZUJ LABELKĘ S/N  <-- DODANE
                     self.sn_label.config(
-                        text=f"Operator: {self.operator_hrid}  |  S/N: {self.device_serial}"
+                        text=f"Operator: {self.operator_hrid} | S/N: {self.device_serial}"
                     )
-
-                    # PRZYWRÓĆ FOCUS
                     self.window.lift()
                     self.window.focus_force()
-
                 else:
                     self.back_to_menu()
             else:
@@ -1075,7 +838,6 @@ class ComboTest:
         self.combo_running = False
         self.t3_stop_sound = True
 
-        # Anuluj zaplanowane zadania
         if self.combo_job:
             self.window.after_cancel(self.combo_job)
             self.combo_job = None
@@ -1086,11 +848,9 @@ class ComboTest:
             self.window.after_cancel(self.t3_job)
             self.t3_job = None
 
-        # Zatrzymaj dźwięki
         pygame.mixer.stop()
         pygame.mixer.music.stop()
 
-        # Ustaw statusy przerwanych testów
         if self.current_phase == 'test1':
             self.set_test_status(1, 'interrupted')
         elif self.current_phase == 'test2':
@@ -1102,6 +862,29 @@ class ComboTest:
             self.set_test_status(3, 'interrupted')
 
         self.finish_combo(interrupted=True)
+
+    def get_song_length(self, filepath):
+        """Pobiera długość pliku audio w sekundach"""
+        try:
+            try:
+                from mutagen import File as MutagenFile
+                audio = MutagenFile(filepath)
+                if audio and audio.info:
+                    return audio.info.length
+            except ImportError:
+                pass
+            temp_sound = pygame.mixer.Sound(filepath)
+            return temp_sound.get_length()
+        except Exception as e:
+            print(f"[COMBO] Blad pobierania dlugosci: {e}")
+            return 0
+
+    def format_time(self, seconds):
+        """Formatuje sekundy do MM:SS"""
+        seconds = int(seconds)
+        m = seconds // 60
+        s = seconds % 60
+        return f"{m}:{s:02d}"
 
     def back_to_menu(self):
         """Wraca do głównego menu"""
