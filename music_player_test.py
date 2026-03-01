@@ -1,17 +1,18 @@
 """
 Test 1: Odtwarzacz Muzyki
 Bose Style - White Theme (wersja polska z playlistą + progressbar + seek)
+Fragment per-utwór pobierany z configu (Tryb Inżynieryjny)
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, filedialog, messagebox
 import pygame
 import os
+import json
 import time
 from mutagen import File
 from datetime import datetime
 from test_reporter import get_test_reporter
-from config_manager import get_config_manager
 
 
 class MusicPlayerTest:
@@ -40,7 +41,6 @@ class MusicPlayerTest:
         if not pygame.mixer.get_init():
             pygame.mixer.init()
 
-        # Zmienne stanu
         self.playlist = []
         self.current_index = -1
         self.current_file = None
@@ -52,12 +52,13 @@ class MusicPlayerTest:
         self.start_time = 0
         self.pause_pos = 0
 
-        # Fragment - ładowany z configu (zarządza ENG)
+        # Fragment per-utwór — pobierany z configu
         self.fragment_start = 0
         self.fragment_end = 0
         self.fragment_enabled = False
+        self.fragments_config = {}
 
-        # Zmienne auto testu
+        # Auto test
         self.auto_test_running = False
         self.auto_test_job = None
         self.auto_test_step = 0
@@ -65,26 +66,66 @@ class MusicPlayerTest:
         self.auto_test_duration = 5000
         self.auto_test_start_time = None
 
-        # Wczytaj playlistę z configu (zarządza ENG)
-        self.load_playlist_from_config()
+        self.config_file = "audio_tool_config.json"
 
+        self.load_playlist_from_config()
         self.create_widgets()
         self.refresh_playlist_display()
 
         self.window.protocol("WM_DELETE_WINDOW", self.close_window)
 
+    # ─────────────────────────────────────────
+    # CONFIG
+    # ─────────────────────────────────────────
+
     def load_playlist_from_config(self):
-        """Wczytuje playlistę z konfiguracji (tylko ENG może ją zmieniać)"""
+        """Wczytuje playlistę i fragmenty z konfiguracji"""
         try:
-            config_mgr = get_config_manager()
-            config_mgr.reload_config()
-            saved_playlist = config_mgr.get('music_player.playlist', [])
-            self.playlist = [f for f in saved_playlist if os.path.exists(f)]
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                mp = config.get('music_player', {})
+                saved_playlist = mp.get('playlist', [])
+                self.playlist = [f for f in saved_playlist if os.path.exists(f)]
+                self.fragments_config = mp.get('fragments', {})
         except:
             pass
 
+    def save_playlist_to_config(self):
+        """Zapisuje playlistę do konfiguracji (fragmenty są zarządzane przez Tryb Inżynieryjny)"""
+        try:
+            config = {}
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+            if 'music_player' not in config:
+                config['music_player'] = {}
+            config['music_player']['playlist'] = self.playlist
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=4, ensure_ascii=False)
+        except Exception as e:
+            print(f"Błąd zapisu playlisty: {e}")
+
+    def reload_fragments_config(self):
+        """Przeładowuje fragmenty z pliku configu (bez nadpisywania playlisty)"""
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                self.fragments_config = config.get('music_player', {}).get('fragments', {})
+        except:
+            pass
+
+    def get_fragment_for_file(self, filepath):
+        """Zwraca (start_pct, end_pct) dla pliku, domyślnie (0, 100)"""
+        frag = self.fragments_config.get(filepath, {})
+        return frag.get('start_pct', 0), frag.get('end_pct', 100)
+
+    # ─────────────────────────────────────────
+    # UI
+    # ─────────────────────────────────────────
+
     def create_widgets(self):
-        """Tworzenie interfejsu"""
         main_frame = tk.Frame(self.window, bg=self.colors['bg_main'])
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
@@ -175,15 +216,61 @@ class MusicPlayerTest:
         self.playlist_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.playlist_listbox.yview)
 
-        # Info - playlista tylko przez ENG
-        tk.Label(playlist_frame,
-                 text="Playlista zarządzana przez ENG",
-                 font=('Arial', 7),
-                 bg=self.colors['bg_main'],
-                 fg=self.colors['text_secondary']
-                 ).pack(anchor='w', padx=8, pady=(0, 6))
+        playlist_btn_frame = tk.Frame(playlist_frame, bg=self.colors['bg_main'])
+        playlist_btn_frame.pack(fill=tk.X, padx=8, pady=(0, 8))
 
-        # === AUTO TEST ===
+        self.add_files_btn = tk.Button(
+            playlist_btn_frame,
+            text="+ DODAJ PLIKI",
+            command=self.add_files,
+            bg=self.colors['button_bg'], fg=self.colors['button_fg'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2, relief=tk.SOLID, font=('Arial', 8), width=14
+        )
+        self.add_files_btn.pack(side=tk.LEFT, padx=2)
+
+        self.remove_btn = tk.Button(
+            playlist_btn_frame,
+            text="✖ USUŃ",
+            command=self.remove_selected,
+            bg=self.colors['button_bg'], fg=self.colors['button_fg'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2, relief=tk.SOLID, font=('Arial', 8), width=10
+        )
+        self.remove_btn.pack(side=tk.LEFT, padx=2)
+
+        self.clear_btn = tk.Button(
+            playlist_btn_frame,
+            text="🗑 WYCZYŚĆ",
+            command=self.clear_playlist,
+            bg=self.colors['button_bg'], fg=self.colors['button_fg'],
+            activebackground=self.colors['button_active'],
+            activeforeground=self.colors['button_active_fg'],
+            bd=2, relief=tk.SOLID, font=('Arial', 8), width=12
+        )
+        self.clear_btn.pack(side=tk.LEFT, padx=2)
+
+        # === INFO O FRAGMENCIE (tylko do odczytu — konfiguracja w Trybie Inżynieryjnym) ===
+        self.fragment_info_frame = tk.Frame(
+            main_frame,
+            bg=self.colors['bg_card'],
+            relief=tk.SOLID,
+            bd=1
+        )
+        self.fragment_info_frame.pack(fill=tk.X, pady=(0, 12))
+
+        self.fragment_info_label = tk.Label(
+            self.fragment_info_frame,
+            text="Fragment: cały utwór  |  Konfiguruj w Trybie Inżynieryjnym",
+            font=('Arial', 8),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text_secondary']
+        )
+        self.fragment_info_label.pack(padx=10, pady=6)
+
+        # === AUTOMATYCZNY TEST ===
         auto_test_frame = tk.LabelFrame(
             main_frame,
             text="AUTOMATYCZNY TEST",
@@ -214,13 +301,10 @@ class MusicPlayerTest:
             auto_buttons,
             text="▶ START AUTO TEST",
             font=('Arial', 8, 'bold'),
-            bg=self.colors['button_bg'],
-            fg=self.colors['button_fg'],
+            bg=self.colors['button_bg'], fg=self.colors['button_fg'],
             activebackground=self.colors['button_active'],
             activeforeground=self.colors['button_active_fg'],
-            bd=2,
-            relief=tk.SOLID,
-            width=18,
+            bd=2, relief=tk.SOLID, width=18,
             state=tk.DISABLED,
             command=self.start_auto_test
         )
@@ -230,13 +314,10 @@ class MusicPlayerTest:
             auto_buttons,
             text="⏹ STOP AUTO TEST",
             font=('Arial', 8, 'bold'),
-            bg=self.colors['button_bg'],
-            fg=self.colors['button_fg'],
+            bg=self.colors['button_bg'], fg=self.colors['button_fg'],
             activebackground=self.colors['button_active'],
             activeforeground=self.colors['button_active_fg'],
-            bd=2,
-            relief=tk.SOLID,
-            width=18,
+            bd=2, relief=tk.SOLID, width=18,
             state=tk.DISABLED,
             command=self.stop_auto_test
         )
@@ -262,13 +343,10 @@ class MusicPlayerTest:
             seek_frame,
             text="⏪ -10s",
             font=('Arial', 8, 'bold'),
-            bg=self.colors['bg_card'],
-            fg=self.colors['text_secondary'],
+            bg=self.colors['bg_card'], fg=self.colors['text_secondary'],
             activebackground=self.colors['button_active'],
             activeforeground=self.colors['button_active_fg'],
-            bd=2,
-            relief=tk.SOLID,
-            width=9,
+            bd=2, relief=tk.SOLID, width=9,
             state=tk.DISABLED,
             command=self.rewind_10s
         )
@@ -278,13 +356,10 @@ class MusicPlayerTest:
             seek_frame,
             text="⏩ +10s",
             font=('Arial', 8, 'bold'),
-            bg=self.colors['bg_card'],
-            fg=self.colors['text_secondary'],
+            bg=self.colors['bg_card'], fg=self.colors['text_secondary'],
             activebackground=self.colors['button_active'],
             activeforeground=self.colors['button_active_fg'],
-            bd=2,
-            relief=tk.SOLID,
-            width=9,
+            bd=2, relief=tk.SOLID, width=9,
             state=tk.DISABLED,
             command=self.forward_10s
         )
@@ -297,13 +372,10 @@ class MusicPlayerTest:
             playback_frame,
             text="▶ PLAY",
             font=('Arial', 8, 'bold'),
-            bg=self.colors['bg_card'],
-            fg=self.colors['text_secondary'],
+            bg=self.colors['bg_card'], fg=self.colors['text_secondary'],
             activebackground=self.colors['button_active'],
             activeforeground=self.colors['button_active_fg'],
-            bd=2,
-            relief=tk.SOLID,
-            width=9,
+            bd=2, relief=tk.SOLID, width=9,
             state=tk.DISABLED,
             command=self.play_music
         )
@@ -313,13 +385,10 @@ class MusicPlayerTest:
             playback_frame,
             text="⏸ PAUZA",
             font=('Arial', 8, 'bold'),
-            bg=self.colors['bg_card'],
-            fg=self.colors['text_secondary'],
+            bg=self.colors['bg_card'], fg=self.colors['text_secondary'],
             activebackground=self.colors['button_active'],
             activeforeground=self.colors['button_active_fg'],
-            bd=2,
-            relief=tk.SOLID,
-            width=9,
+            bd=2, relief=tk.SOLID, width=9,
             state=tk.DISABLED,
             command=self.pause_music
         )
@@ -329,13 +398,10 @@ class MusicPlayerTest:
             playback_frame,
             text="⏹ STOP",
             font=('Arial', 8, 'bold'),
-            bg=self.colors['bg_card'],
-            fg=self.colors['text_secondary'],
+            bg=self.colors['bg_card'], fg=self.colors['text_secondary'],
             activebackground=self.colors['button_active'],
             activeforeground=self.colors['button_active_fg'],
-            bd=2,
-            relief=tk.SOLID,
-            width=9,
+            bd=2, relief=tk.SOLID, width=9,
             state=tk.DISABLED,
             command=self.stop_music
         )
@@ -357,30 +423,24 @@ class MusicPlayerTest:
         vol_container.pack(fill=tk.X, padx=8, pady=6)
 
         tk.Label(vol_container, text="0%",
-                 bg=self.colors['bg_main'],
-                 fg=self.colors['text_secondary'],
+                 bg=self.colors['bg_main'], fg=self.colors['text_secondary'],
                  font=('Arial', 7)).pack(side=tk.LEFT)
 
         self.volume_slider = tk.Scale(
             vol_container,
-            from_=0,
-            to=82,
+            from_=0, to=82,
             orient=tk.HORIZONTAL,
-            bg=self.colors['bg_main'],
-            fg=self.colors['text_primary'],
+            bg=self.colors['bg_main'], fg=self.colors['text_primary'],
             troughcolor=self.colors['slider_bg'],
             highlightthickness=0,
             command=self.change_volume,
-            showvalue=0,
-            bd=0,
-            relief=tk.FLAT
+            showvalue=0, bd=0, relief=tk.FLAT
         )
         self.volume_slider.set(self.volume)
         self.volume_slider.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=6)
 
         tk.Label(vol_container, text="82%",
-                 bg=self.colors['bg_main'],
-                 fg=self.colors['text_secondary'],
+                 bg=self.colors['bg_main'], fg=self.colors['text_secondary'],
                  font=('Arial', 7)).pack(side=tk.RIGHT)
 
         self.volume_label = tk.Label(
@@ -400,13 +460,53 @@ class MusicPlayerTest:
                   fg=self.colors['text_secondary'],
                   activebackground=self.colors['button_active'],
                   activeforeground=self.colors['button_active_fg'],
-                  bd=2,
-                  relief=tk.SOLID,
-                  font=('Arial', 8),
+                  bd=2, relief=tk.SOLID, font=('Arial', 8),
                   width=20).pack(pady=(12, 0))
 
+    # ─────────────────────────────────────────
+    # PLAYLISTA
+    # ─────────────────────────────────────────
+
+    def add_files(self):
+        file_paths = filedialog.askopenfilenames(
+            title="Wybierz pliki audio",
+            filetypes=[
+                ("Pliki audio", "*.mp3 *.wav *.ogg *.flac"),
+                ("Pliki MP3", "*.mp3"),
+                ("Pliki WAV", "*.wav"),
+                ("Pliki OGG", "*.ogg"),
+                ("Wszystkie pliki", "*.*")
+            ]
+        )
+        if file_paths:
+            for path in file_paths:
+                if path not in self.playlist:
+                    self.playlist.append(path)
+            self.refresh_playlist_display()
+            self.save_playlist_to_config()
+            self.window.lift()
+            self.window.focus_force()
+
+    def remove_selected(self):
+        selection = self.playlist_listbox.curselection()
+        if selection:
+            index = selection[0]
+            del self.playlist[index]
+            self.refresh_playlist_display()
+            self.save_playlist_to_config()
+            if index == self.current_index:
+                self.stop_music()
+                self.current_index = -1
+
+    def clear_playlist(self):
+        if messagebox.askyesno("Potwierdzenie", "Wyczyścić całą playlistę?"):
+            self.stop_music()
+            self.playlist = []
+            self.current_index = -1
+            self.refresh_playlist_display()
+            self.save_playlist_to_config()
+
     def refresh_playlist_display(self):
-        """Odświeża wyświetlanie playlisty"""
         self.playlist_listbox.delete(0, tk.END)
         for i, filepath in enumerate(self.playlist):
             filename = os.path.basename(filepath)
@@ -414,27 +514,68 @@ class MusicPlayerTest:
             self.playlist_listbox.insert(tk.END, f"{prefix}{filename}")
 
         if self.playlist:
-            self.play_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
-            self.auto_start_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+            self.play_btn.config(state=tk.NORMAL,
+                                 bg=self.colors['button_bg'],
+                                 fg=self.colors['button_fg'])
+            self.auto_start_btn.config(state=tk.NORMAL,
+                                       bg=self.colors['button_bg'],
+                                       fg=self.colors['button_fg'])
         else:
-            self.play_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
-            self.auto_start_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+            self.play_btn.config(state=tk.DISABLED,
+                                 bg=self.colors['bg_card'],
+                                 fg=self.colors['text_secondary'])
+            self.auto_start_btn.config(state=tk.DISABLED,
+                                       bg=self.colors['bg_card'],
+                                       fg=self.colors['text_secondary'])
+
+    # ─────────────────────────────────────────
+    # ODTWARZANIE
+    # ─────────────────────────────────────────
 
     def load_and_play(self, filepath):
-        """Ładuje i odtwarza plik"""
+        """Ładuje i odtwarza plik — fragment pobierany z configu per-utwór"""
         try:
             self.song_length = self.get_song_length(filepath)
+
+            # Przeładuj fragmenty z configu (żeby mieć aktualne dane)
+            self.reload_fragments_config()
+
+            # Pobierz fragment dla tego konkretnego pliku
+            start_pct, end_pct = self.get_fragment_for_file(filepath)
+            self.fragment_start = (start_pct / 100.0) * self.song_length
+            self.fragment_end = (end_pct / 100.0) * self.song_length
+            self.fragment_enabled = (start_pct != 0 or end_pct != 100)
+
+            # Zaktualizuj info-bar
+            if self.fragment_enabled:
+                self.fragment_info_label.config(
+                    text=f"✂ Fragment: {start_pct}% → {end_pct}%  "
+                         f"({self.format_time(self.fragment_start)} → {self.format_time(self.fragment_end)})"
+                         f"  |  Konfiguruj w Trybie Inżynieryjnym",
+                    fg=self.colors['text_primary']
+                )
+            else:
+                self.fragment_info_label.config(
+                    text=f"Fragment: cały utwór ({self.format_time(self.song_length)})"
+                         f"  |  Konfiguruj w Trybie Inżynieryjnym",
+                    fg=self.colors['text_secondary']
+                )
+
             pygame.mixer.music.load(filepath)
             self.current_file = filepath
             filename = os.path.basename(filepath)
-
             self.file_label.config(text=filename.upper(), fg=self.colors['text_primary'])
 
-            pygame.mixer.music.play()
+            if self.fragment_enabled and self.fragment_start > 0:
+                pygame.mixer.music.play(start=self.fragment_start)
+                self.start_time = time.time() - self.fragment_start
+            else:
+                pygame.mixer.music.play()
+                self.start_time = time.time()
+
             pygame.mixer.music.set_volume(self.volume / 82.0)
             self.is_playing = True
             self.is_paused = False
-            self.start_time = time.time()
 
             self.refresh_playlist_display()
             self.update_buttons_playing()
@@ -444,13 +585,10 @@ class MusicPlayerTest:
             self.update_progress()
 
         except Exception as e:
-            from tkinter import messagebox
             messagebox.showerror("Błąd", f"Nie można odtworzyć:\n{str(e)}")
 
     def play_music(self):
-        """Odtwarza muzykę"""
         if not self.playlist:
-            from tkinter import messagebox
             messagebox.showwarning("Uwaga", "Playlista jest pusta")
             return
 
@@ -474,7 +612,6 @@ class MusicPlayerTest:
         self.update_buttons_playing()
 
     def pause_music(self):
-        """Pauzuje"""
         if self.is_playing and not self.is_paused:
             self.pause_pos = time.time() - self.start_time
             pygame.mixer.music.pause()
@@ -485,25 +622,22 @@ class MusicPlayerTest:
             self.update_buttons_paused()
 
     def stop_music(self):
-        """Zatrzymuje"""
         pygame.mixer.music.stop()
         self.is_playing = False
         self.is_paused = False
-
         if self.update_job:
             self.window.after_cancel(self.update_job)
             self.update_job = None
-
         self.progress_var.set(0)
         self.time_label.config(text="00:00 / 00:00")
         self.update_buttons_stopped()
 
     def rewind_10s(self):
-        """Cofa o 10 sekund"""
         if self.is_playing and not self.is_paused and self.current_file:
             try:
                 elapsed = time.time() - self.start_time
-                new_pos = max(0, elapsed - 10)
+                new_pos = max(self.fragment_start if self.fragment_enabled else 0,
+                              elapsed - 10)
                 pygame.mixer.music.stop()
                 pygame.mixer.music.load(self.current_file)
                 pygame.mixer.music.play(start=new_pos)
@@ -513,7 +647,6 @@ class MusicPlayerTest:
                 print(f"Błąd przewijania: {e}")
 
     def forward_10s(self):
-        """Przewija o 10 sekund"""
         if self.is_playing and not self.is_paused and self.current_file:
             try:
                 elapsed = time.time() - self.start_time
@@ -527,12 +660,12 @@ class MusicPlayerTest:
                 print(f"Błąd przewijania: {e}")
 
     def seek_to_position(self, event):
-        """Przewija do klikniętej pozycji na pasku"""
         if self.is_playing and self.song_length > 0 and self.current_file:
             try:
                 click_pos = event.x
                 total_width = self.progress_bar.winfo_width()
-                percent = max(0, min(100, (click_pos / total_width) * 100))
+                percent = (click_pos / total_width) * 100
+                percent = max(0, min(100, percent))
                 new_pos = (percent / 100) * self.song_length
                 pygame.mixer.music.stop()
                 pygame.mixer.music.load(self.current_file)
@@ -543,19 +676,20 @@ class MusicPlayerTest:
                 print(f"Błąd przewijania: {e}")
 
     def change_volume(self, value):
-        """Zmienia głośność"""
         self.volume = int(float(value))
         pygame.mixer.music.set_volume(self.volume / 82.0)
         self.volume_label.config(text=f"POZIOM: {self.volume}%")
 
     def update_progress(self):
-        """Aktualizuje pasek postępu i czas"""
         if self.is_playing and not self.is_paused:
             try:
                 pos_sec = time.time() - self.start_time
 
-                # Fragment aktywny podczas auto testu - zapętl w obrębie fragmentu
-                if self.fragment_enabled and self.auto_test_running and pos_sec >= self.fragment_end:
+                # Pętlowanie fragmentu podczas auto testu
+                if (self.fragment_enabled and
+                        self.auto_test_running and
+                        self.fragment_end > 0 and
+                        pos_sec >= self.fragment_end):
                     pygame.mixer.music.stop()
                     pygame.mixer.music.load(self.current_file)
                     pygame.mixer.music.play(start=self.fragment_start)
@@ -574,20 +708,23 @@ class MusicPlayerTest:
                 current_time = self.format_time(pos_sec)
                 total_time = self.format_time(self.song_length) if self.song_length > 0 else "00:00"
                 self.time_label.config(text=f"{current_time} / {total_time}")
+
             except:
                 pass
 
         if self.is_playing:
             self.update_job = self.window.after(100, self.update_progress)
 
+    # ─────────────────────────────────────────
+    # UTILS
+    # ─────────────────────────────────────────
+
     def format_time(self, seconds):
-        """Formatuje sekundy na MM:SS"""
         mins = int(seconds // 60)
         secs = int(seconds % 60)
         return f"{mins:02d}:{secs:02d}"
 
     def get_song_length(self, filepath):
-        """Odczytuje długość utworu w sekundach"""
         try:
             audio = File(filepath)
             if audio is not None and hasattr(audio.info, 'length'):
@@ -597,38 +734,63 @@ class MusicPlayerTest:
             return 0
 
     def update_buttons_playing(self):
-        self.play_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
-        self.pause_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
-        self.stop_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
-        self.rewind_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
-        self.forward_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+        self.play_btn.config(state=tk.DISABLED,
+                             bg=self.colors['bg_card'],
+                             fg=self.colors['text_secondary'])
+        self.pause_btn.config(state=tk.NORMAL,
+                              bg=self.colors['button_bg'],
+                              fg=self.colors['button_fg'])
+        self.stop_btn.config(state=tk.NORMAL,
+                             bg=self.colors['button_bg'],
+                             fg=self.colors['button_fg'])
+        self.rewind_btn.config(state=tk.NORMAL,
+                               bg=self.colors['button_bg'],
+                               fg=self.colors['button_fg'])
+        self.forward_btn.config(state=tk.NORMAL,
+                                bg=self.colors['button_bg'],
+                                fg=self.colors['button_fg'])
 
     def update_buttons_paused(self):
-        self.play_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
-        self.pause_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.play_btn.config(state=tk.NORMAL,
+                             bg=self.colors['button_bg'],
+                             fg=self.colors['button_fg'])
+        self.pause_btn.config(state=tk.DISABLED,
+                              bg=self.colors['bg_card'],
+                              fg=self.colors['text_secondary'])
 
     def update_buttons_stopped(self):
+        has_pl = bool(self.playlist)
         self.play_btn.config(
-            state=tk.NORMAL if self.playlist else tk.DISABLED,
-            bg=self.colors['button_bg'] if self.playlist else self.colors['bg_card'],
-            fg=self.colors['button_fg'] if self.playlist else self.colors['text_secondary']
+            state=tk.NORMAL if has_pl else tk.DISABLED,
+            bg=self.colors['button_bg'] if has_pl else self.colors['bg_card'],
+            fg=self.colors['button_fg'] if has_pl else self.colors['text_secondary']
         )
-        self.pause_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
-        self.stop_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
-        self.rewind_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
-        self.forward_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.pause_btn.config(state=tk.DISABLED,
+                              bg=self.colors['bg_card'],
+                              fg=self.colors['text_secondary'])
+        self.stop_btn.config(state=tk.DISABLED,
+                             bg=self.colors['bg_card'],
+                             fg=self.colors['text_secondary'])
+        self.rewind_btn.config(state=tk.DISABLED,
+                               bg=self.colors['bg_card'],
+                               fg=self.colors['text_secondary'])
+        self.forward_btn.config(state=tk.DISABLED,
+                                bg=self.colors['bg_card'],
+                                fg=self.colors['text_secondary'])
+
+    # ─────────────────────────────────────────
+    # AUTO TEST
+    # ─────────────────────────────────────────
 
     def start_auto_test(self):
-        """Uruchamia automatyczny test głośności"""
         if not self.playlist:
-            from tkinter import messagebox
-            messagebox.showwarning("Uwaga", "Playlista jest pusta. Dodaj pliki w Trybie Inżynieryjnym.")
+            messagebox.showwarning("Uwaga", "Playlista jest pusta")
             return
 
+        from config_manager import get_config_manager
         config_mgr = get_config_manager()
         config_mgr.reload_config()
 
-        # Wczytaj ustawienia testu
         self.auto_test_volumes = config_mgr.get('test1_auto.volume_levels', [10, 20, 30, 40, 50, 60, 70, 80])
         step_duration_sec = config_mgr.get('test1_auto.step_duration', 5)
         self.auto_test_duration = step_duration_sec * 1000
@@ -648,30 +810,23 @@ class MusicPlayerTest:
         elif self.current_index == -1:
             self.current_index = 0
 
+        # Pobierz długość i fragment dla wybranego pliku
         filepath = self.playlist[self.current_index]
-        if self.song_length == 0:
-            self.song_length = self.get_song_length(filepath)
+        self.song_length = self.get_song_length(filepath)
 
-        # Wczytaj fragment z configu (ustawiony przez ENG)
-        frag_start_pct = config_mgr.get('music_player.fragment_start_pct', 0)
-        frag_end_pct = config_mgr.get('music_player.fragment_end_pct', 100)
+        self.reload_fragments_config()
+        start_pct, end_pct = self.get_fragment_for_file(filepath)
+        self.fragment_start = (start_pct / 100.0) * self.song_length
+        self.fragment_end = (end_pct / 100.0) * self.song_length
+        self.fragment_enabled = (start_pct != 0 or end_pct != 100)
 
-        if frag_start_pct == 0 and frag_end_pct == 100:
-            self.fragment_enabled = False
-            self.fragment_start = 0
-            self.fragment_end = self.song_length
-        else:
-            self.fragment_enabled = True
-            self.fragment_start = (frag_start_pct / 100) * self.song_length
-            self.fragment_end = (frag_end_pct / 100) * self.song_length
-
-        print(f"[DEBUG] Fragment z ENG: {self.format_time(self.fragment_start)} → {self.format_time(self.fragment_end)}")
+        print(f"[AUTO TEST] Fragment: {self.format_time(self.fragment_start)} → {self.format_time(self.fragment_end)}")
 
         self.auto_test_running = True
         self.auto_test_step = 0
         self.auto_test_start_time = datetime.now()
 
-        # Zablokuj przyciski
+        # Zablokuj UI
         self.play_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
         self.pause_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
         self.stop_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
@@ -679,13 +834,15 @@ class MusicPlayerTest:
         self.forward_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
         self.volume_slider.config(state=tk.DISABLED)
         self.playlist_listbox.config(state=tk.DISABLED)
+        self.add_files_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.remove_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.clear_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
         self.auto_start_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
         self.auto_stop_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
 
         self.run_auto_test_step()
 
     def run_auto_test_step(self):
-        """Wykonuje jeden krok auto testu"""
         if not self.auto_test_running:
             return
 
@@ -713,19 +870,8 @@ class MusicPlayerTest:
 
         if self.auto_test_step == 0:
             filepath = self.playlist[self.current_index]
-            if self.song_length == 0:
-                self.song_length = self.get_song_length(filepath)
-
             self.load_and_play(filepath)
-
-            if self.fragment_enabled and self.fragment_start > 0:
-                pygame.mixer.music.stop()
-                pygame.mixer.music.load(filepath)
-                pygame.mixer.music.play(start=self.fragment_start)
-                pygame.mixer.music.set_volume(self.volume / 82.0)
-                self.start_time = time.time() - self.fragment_start
-                self.is_playing = True
-
+            # Zablokuj przyciski nawigacji (load_and_play je odblokował)
             if self.auto_test_running:
                 self.rewind_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
                 self.forward_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
@@ -734,7 +880,6 @@ class MusicPlayerTest:
         self.auto_test_job = self.window.after(self.auto_test_duration, self.run_auto_test_step)
 
     def stop_auto_test(self, save_report=True):
-        """Zatrzymuje automatyczny test"""
         if self.auto_test_running and self.auto_test_step > 0 and save_report:
             if self.auto_test_step < len(self.auto_test_volumes):
                 self.save_test_report(status="INTERRUPTED", interrupted=True)
@@ -750,13 +895,15 @@ class MusicPlayerTest:
 
         self.auto_start_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
         self.auto_stop_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
+        self.add_files_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+        self.remove_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
+        self.clear_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
         self.volume_slider.config(state=tk.NORMAL)
         self.playlist_listbox.config(state=tk.NORMAL)
         self.update_buttons_stopped()
         self.auto_status_label.config(text="")
 
     def save_test_report(self, status, interrupted):
-        """Zapisuje raport z testu"""
         try:
             if not self.auto_test_start_time:
                 return
@@ -765,7 +912,6 @@ class MusicPlayerTest:
             completed_steps = self.auto_test_step
             total_steps = len(self.auto_test_volumes)
             volumes_tested = self.auto_test_volumes[:completed_steps]
-
             reporter = get_test_reporter()
             reporter.save_test1_result(
                 operator_hrid=self.operator_hrid,
@@ -784,7 +930,6 @@ class MusicPlayerTest:
             print(f"Błąd zapisu raportu: {e}")
 
     def show_auto_close_message(self):
-        """Pokazuje komunikat który znika po 3 sekundach"""
         msg_window = tk.Toplevel(self.window)
         msg_window.title("Test zakończony")
         msg_window.geometry("400x150")
@@ -812,14 +957,12 @@ class MusicPlayerTest:
         msg_window.after(3000, lambda: self.restart_test_after_success(msg_window))
 
     def restart_test_after_success(self, msg_window):
-        """Zamyka komunikat i pokazuje okno skanowania dla kolejnego urządzenia"""
         try:
             msg_window.destroy()
             if self.scan_callback:
                 new_serial = self.scan_callback("TEST 1 - Odtwarzacz Muzyki")
                 if new_serial:
                     self.device_serial = new_serial
-                    print(f"[DEBUG] Nowy numer seryjny: {new_serial}")
                     self.auto_test_step = 0
                     self.auto_test_start_time = None
                     self.window.lift()
@@ -832,8 +975,11 @@ class MusicPlayerTest:
             print(f"[DEBUG] Błąd restartu: {e}")
             self.close_window()
 
+    # ─────────────────────────────────────────
+    # ZAMKNIĘCIE
+    # ─────────────────────────────────────────
+
     def close_window(self):
-        """Zamyka okno"""
         try:
             if self.auto_test_running:
                 self.stop_auto_test()
@@ -841,6 +987,7 @@ class MusicPlayerTest:
                 self.window.after_cancel(self.update_job)
             if self.is_playing:
                 pygame.mixer.music.stop()
+            self.save_playlist_to_config()
             self.window.destroy()
         except Exception as e:
             print(f"Błąd zamykania: {e}")

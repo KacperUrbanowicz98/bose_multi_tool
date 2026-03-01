@@ -1,6 +1,7 @@
 """
 Test 4: COMBO Test (TEST 1 + TEST 2 + TEST 3)
 Bose Audio Multi-Tool
+Fragment per-utwór pobierany z configu (Tryb Inżynieryjny)
 """
 
 import tkinter as tk
@@ -25,7 +26,6 @@ class ComboTest:
         self.scan_callback = scan_callback
         self.close_callback = close_callback
 
-        # === KOLORY ===
         self.colors = {
             'bg_main': '#FFFFFF',
             'bg_card': '#F5F5F5',
@@ -46,18 +46,14 @@ class ComboTest:
         config_mgr = get_config_manager()
         config_mgr.reload_config()
 
-        # TEST 1 config
         self.t1_step_duration = config_mgr.get('test1_auto.step_duration', 2)
         self.t1_volume_levels = config_mgr.get('test1_auto.volume_levels',
-                                               [10, 20, 30, 40, 50, 60, 70, 80])
-        # TEST 2 config
+                                                [10, 20, 30, 40, 50, 60, 70, 80])
         self.t2_freq_min = config_mgr.get('test2_auto.freq_min', 20)
         self.t2_freq_max = config_mgr.get('test2_auto.freq_max', 20000)
         self.t2_duration = config_mgr.get('test2_auto.duration', 11)
         self.t2_volume = config_mgr.get('test2_auto.volume', 50)
         self.t2_wave_type = config_mgr.get('test2_auto.wave_type', 'sine')
-
-        # TEST 3 config
         self.t3_duration_per_channel = config_mgr.get('test3_auto.duration_per_channel', 5)
         self.t3_frequency = config_mgr.get('test3_auto.frequency', 1000)
         self.t3_volume = config_mgr.get('test3_auto.volume', 50)
@@ -69,18 +65,15 @@ class ComboTest:
         self.combo_job = None
         self.interrupted = False
 
-        # Playlist / fragment - ładowane z configu (zarządza ENG)
+        # Playlista i fragmenty per-utwór z configu
         saved_playlist = config_mgr.get('music_player.playlist', [])
         self.playlist = [f for f in saved_playlist if os.path.exists(f)]
+        self.fragments_config = config_mgr.get('music_player.fragments', {})
         self.current_index = 0
         self.song_length = 0
         self.fragment_start = 0
         self.fragment_end = 0
         self.fragment_enabled = False
-
-        # Wczytaj fragment z configu
-        self._frag_start_pct = config_mgr.get('music_player.fragment_start_pct', 0)
-        self._frag_end_pct = config_mgr.get('music_player.fragment_end_pct', 100)
 
         # Audio
         self.is_playing = False
@@ -90,7 +83,7 @@ class ComboTest:
         self.current_file = None
         self.start_time_offset = 0
 
-        # Wyniki testów
+        # Wyniki
         self.test1_data = {}
         self.test2_data = {}
         self.test3_data = {}
@@ -113,13 +106,28 @@ class ComboTest:
 
         self.create_widgets()
 
-    # =====================
-    # === TWORZENIE GUI ===
-    # =====================
+    # ─────────────────────────────────────────
+    # CONFIG HELPERS
+    # ─────────────────────────────────────────
+
+    def reload_config(self):
+        """Przeładowuje playlistę i fragmenty z pliku configu"""
+        config_mgr = get_config_manager()
+        config_mgr.reload_config()
+        saved_playlist = config_mgr.get('music_player.playlist', [])
+        self.playlist = [f for f in saved_playlist if os.path.exists(f)]
+        self.fragments_config = config_mgr.get('music_player.fragments', {})
+
+    def get_fragment_for_file(self, filepath):
+        """Zwraca (start_pct, end_pct) dla pliku, domyślnie (0, 100)"""
+        frag = self.fragments_config.get(filepath, {})
+        return frag.get('start_pct', 0), frag.get('end_pct', 100)
+
+    # ─────────────────────────────────────────
+    # GUI
+    # ─────────────────────────────────────────
 
     def create_widgets(self):
-        """Tworzy interfejs COMBO testu"""
-
         # === NAGŁÓWEK ===
         header = tk.Frame(self.window, bg=self.colors['bg_main'])
         header.pack(fill='x', padx=20, pady=(15, 5))
@@ -148,7 +156,6 @@ class ComboTest:
         tk.Frame(self.window, height=2,
                  bg=self.colors['border']).pack(fill='x', padx=20, pady=(8, 10))
 
-        # === GŁÓWNY KONTENER ===
         main = tk.Frame(self.window, bg=self.colors['bg_main'])
         main.pack(fill='both', expand=True, padx=20)
 
@@ -164,113 +171,82 @@ class ComboTest:
         status_grid = tk.Frame(status_frame, bg=self.colors['bg_main'])
         status_grid.pack(pady=10, padx=10)
 
-        # TEST 1 status
-        self.t1_status_frame = tk.Frame(status_grid,
-                                        bg=self.colors['bg_card'],
-                                        relief=tk.SOLID, bd=1)
-        self.t1_status_frame.grid(row=0, column=0, padx=5, pady=3, ipadx=10, ipady=5)
+        for col, (num, name, subtitle) in enumerate([
+            (1, "TEST 1", "Music Player"),
+            (2, "TEST 2", "Tone Generator"),
+            (3, "TEST 3", "Stereo L/R")
+        ]):
+            if col > 0:
+                tk.Label(status_grid, text="→",
+                         font=('Arial', 14, 'bold'),
+                         bg=self.colors['bg_main'],
+                         fg=self.colors['text_secondary']).grid(
+                    row=0, column=col * 2 - 1, padx=3)
 
-        tk.Label(self.t1_status_frame, text="TEST 1",
-                 font=('Arial', 8, 'bold'),
-                 bg=self.colors['bg_card'],
-                 fg=self.colors['text_primary']).pack()
+            frame = tk.Frame(status_grid,
+                             bg=self.colors['bg_card'],
+                             relief=tk.SOLID, bd=1)
+            frame.grid(row=0, column=col * 2, padx=5, pady=3, ipadx=10, ipady=5)
 
-        tk.Label(self.t1_status_frame, text="Music Player",
-                 font=('Arial', 7),
-                 bg=self.colors['bg_card'],
-                 fg=self.colors['text_secondary']).pack()
+            tk.Label(frame, text=name,
+                     font=('Arial', 8, 'bold'),
+                     bg=self.colors['bg_card'],
+                     fg=self.colors['text_primary']).pack()
+            tk.Label(frame, text=subtitle,
+                     font=('Arial', 7),
+                     bg=self.colors['bg_card'],
+                     fg=self.colors['text_secondary']).pack()
 
-        self.t1_status_label = tk.Label(self.t1_status_frame,
-                                        text="OCZEKUJE",
-                                        font=('Arial', 8, 'bold'),
-                                        bg=self.colors['bg_card'],
-                                        fg=self.colors['text_secondary'])
-        self.t1_status_label.pack()
+            status_lbl = tk.Label(frame, text="OCZEKUJE",
+                                  font=('Arial', 8, 'bold'),
+                                  bg=self.colors['bg_card'],
+                                  fg=self.colors['text_secondary'])
+            status_lbl.pack()
 
-        tk.Label(status_grid, text="→",
-                 font=('Arial', 14, 'bold'),
-                 bg=self.colors['bg_main'],
-                 fg=self.colors['text_secondary']).grid(row=0, column=1, padx=3)
-
-        # TEST 2 status
-        self.t2_status_frame = tk.Frame(status_grid,
-                                        bg=self.colors['bg_card'],
-                                        relief=tk.SOLID, bd=1)
-        self.t2_status_frame.grid(row=0, column=2, padx=5, pady=3, ipadx=10, ipady=5)
-
-        tk.Label(self.t2_status_frame, text="TEST 2",
-                 font=('Arial', 8, 'bold'),
-                 bg=self.colors['bg_card'],
-                 fg=self.colors['text_primary']).pack()
-
-        tk.Label(self.t2_status_frame, text="Tone Generator",
-                 font=('Arial', 7),
-                 bg=self.colors['bg_card'],
-                 fg=self.colors['text_secondary']).pack()
-
-        self.t2_status_label = tk.Label(self.t2_status_frame,
-                                        text="OCZEKUJE",
-                                        font=('Arial', 8, 'bold'),
-                                        bg=self.colors['bg_card'],
-                                        fg=self.colors['text_secondary'])
-        self.t2_status_label.pack()
-
-        tk.Label(status_grid, text="→",
-                 font=('Arial', 14, 'bold'),
-                 bg=self.colors['bg_main'],
-                 fg=self.colors['text_secondary']).grid(row=0, column=3, padx=3)
-
-        # TEST 3 status
-        self.t3_status_frame = tk.Frame(status_grid,
-                                        bg=self.colors['bg_card'],
-                                        relief=tk.SOLID, bd=1)
-        self.t3_status_frame.grid(row=0, column=4, padx=5, pady=3, ipadx=10, ipady=5)
-
-        tk.Label(self.t3_status_frame, text="TEST 3",
-                 font=('Arial', 8, 'bold'),
-                 bg=self.colors['bg_card'],
-                 fg=self.colors['text_primary']).pack()
-
-        tk.Label(self.t3_status_frame, text="Stereo L/R",
-                 font=('Arial', 7),
-                 bg=self.colors['bg_card'],
-                 fg=self.colors['text_secondary']).pack()
-
-        self.t3_status_label = tk.Label(self.t3_status_frame,
-                                        text="OCZEKUJE",
-                                        font=('Arial', 8, 'bold'),
-                                        bg=self.colors['bg_card'],
-                                        fg=self.colors['text_secondary'])
-        self.t3_status_label.pack()
+            if num == 1:
+                self.t1_status_frame = frame
+                self.t1_status_label = status_lbl
+            elif num == 2:
+                self.t2_status_frame = frame
+                self.t2_status_label = status_lbl
+            else:
+                self.t3_status_frame = frame
+                self.t3_status_label = status_lbl
 
         # === INFO UTWÓR / FRAGMENT (tylko do odczytu) ===
         info_frame = tk.Frame(main, bg='#F5F5F5', relief=tk.SOLID, bd=1)
         info_frame.pack(fill='x', pady=(0, 10))
 
-        # Wyświetl aktualny utwór z configu
-        track_name = "Brak - skonfiguruj w Trybie Inżynieryjnym"
-        if self.playlist:
-            track_name = os.path.basename(self.playlist[0])
-
+        track_name = "Brak — skonfiguruj w Trybie Inżynieryjnym"
         frag_info_text = "Cały utwór"
-        if self._frag_start_pct != 0 or self._frag_end_pct != 100:
-            frag_info_text = f"Fragment: {self._frag_start_pct}% → {self._frag_end_pct}%"
+        if self.playlist:
+            fp = self.playlist[0]
+            track_name = os.path.basename(fp)
+            s, e = self.get_fragment_for_file(fp)
+            if s != 0 or e != 100:
+                frag_info_text = f"Fragment: {s}% → {e}%"
 
-        tk.Label(info_frame,
-                 text=f"Utwór: {track_name}",
-                 font=('Arial', 8, 'bold'),
-                 bg='#F5F5F5',
-                 fg=self.colors['text_primary'],
-                 anchor='w').pack(fill='x', padx=10, pady=(6, 1))
+        self.info_track_label = tk.Label(
+            info_frame,
+            text=f"Utwór: {track_name}",
+            font=('Arial', 8, 'bold'),
+            bg='#F5F5F5',
+            fg=self.colors['text_primary'],
+            anchor='w'
+        )
+        self.info_track_label.pack(fill='x', padx=10, pady=(6, 1))
 
-        tk.Label(info_frame,
-                 text=f"{frag_info_text}  |  Playlista i fragment konfigurowane przez ENG",
-                 font=('Arial', 7),
-                 bg='#F5F5F5',
-                 fg=self.colors['text_secondary'],
-                 anchor='w').pack(fill='x', padx=10, pady=(0, 6))
+        self.info_frag_label = tk.Label(
+            info_frame,
+            text=f"{frag_info_text}  |  Playlista i fragment konfigurowane przez ENG",
+            font=('Arial', 7),
+            bg='#F5F5F5',
+            fg=self.colors['text_secondary'],
+            anchor='w'
+        )
+        self.info_frag_label.pack(fill='x', padx=10, pady=(0, 6))
 
-        # === STATUS / PROGRESS ===
+        # === POSTĘP ===
         progress_frame = tk.LabelFrame(main,
                                        text="POSTEP",
                                        font=('Arial', 9, 'bold'),
@@ -304,8 +280,7 @@ class ComboTest:
                                    fg=self.colors['button_fg'],
                                    activebackground=self.colors['button_active'],
                                    activeforeground=self.colors['button_active_fg'],
-                                   bd=2, relief=tk.SOLID,
-                                   width=20,
+                                   bd=2, relief=tk.SOLID, width=20,
                                    command=self.start_combo_test)
         self.start_btn.pack(side='left', padx=5)
 
@@ -316,8 +291,7 @@ class ComboTest:
                                   fg=self.colors['button_fg'],
                                   activebackground=self.colors['button_active'],
                                   activeforeground=self.colors['button_active_fg'],
-                                  bd=2, relief=tk.SOLID,
-                                  width=10,
+                                  bd=2, relief=tk.SOLID, width=10,
                                   state=tk.DISABLED,
                                   command=self.stop_combo_test)
         self.stop_btn.pack(side='left', padx=5)
@@ -332,30 +306,28 @@ class ComboTest:
                   bd=1, relief=tk.SOLID,
                   command=self.back_to_menu).pack(pady=(0, 10))
 
-    # ======================
-    # === COMBO TEST FLOW ===
-    # ======================
+    # ─────────────────────────────────────────
+    # COMBO FLOW
+    # ─────────────────────────────────────────
 
     def start_combo_test(self):
-        """Startuje cały COMBO test"""
+        # Przeładuj świeżą konfigurację
+        self.reload_config()
+
         if not self.playlist:
             messagebox.showwarning("Brak utworu",
                                    "Brak pliku audio w playliście!\n"
                                    "Dodaj pliki w Trybie Inżynieryjnym → Playlista & Fragmenty.")
             return
 
-        # Odśwież config przed startem
-        config_mgr = get_config_manager()
-        config_mgr.reload_config()
-        saved_playlist = config_mgr.get('music_player.playlist', [])
-        self.playlist = [f for f in saved_playlist if os.path.exists(f)]
-        self._frag_start_pct = config_mgr.get('music_player.fragment_start_pct', 0)
-        self._frag_end_pct = config_mgr.get('music_player.fragment_end_pct', 100)
-
-        if not self.playlist:
-            messagebox.showwarning("Brak pliku",
-                                   "Żaden plik z playlisty nie istnieje na dysku!")
-            return
+        # Zaktualizuj info-bar
+        fp = self.playlist[self.current_index]
+        s, e = self.get_fragment_for_file(fp)
+        self.info_track_label.config(text=f"Utwór: {os.path.basename(fp)}")
+        frag_text = f"Fragment: {s}% → {e}%" if (s != 0 or e != 100) else "Cały utwór"
+        self.info_frag_label.config(
+            text=f"{frag_text}  |  Playlista i fragment konfigurowane przez ENG"
+        )
 
         # Resetuj wyniki
         self.test1_data = {}
@@ -375,11 +347,9 @@ class ComboTest:
         self.stop_btn.config(state=tk.NORMAL)
 
         print(f"[COMBO] START - S/N: {self.device_serial}")
-
         self.run_test1()
 
     def set_test_status(self, test_num, status):
-        """Aktualizuje wizualny status testu"""
         labels = {1: self.t1_status_label, 2: self.t2_status_label, 3: self.t3_status_label}
         frames = {1: self.t1_status_frame, 2: self.t2_status_frame, 3: self.t3_status_frame}
 
@@ -402,17 +372,17 @@ class ComboTest:
             label.config(text="PRZERWANY", fg=self.colors['orange'])
             frame.config(bg='#FFF3E0')
 
+        bg = frame.cget('bg')
         for widget in frame.winfo_children():
             if widget != label:
-                widget.config(bg=frame.cget('bg'))
-        label.config(bg=frame.cget('bg'))
+                widget.config(bg=bg)
+        label.config(bg=bg)
 
-    # ==============
-    # === TEST 1 ===
-    # ==============
+    # ─────────────────────────────────────────
+    # TEST 1
+    # ─────────────────────────────────────────
 
     def run_test1(self):
-        """Uruchamia TEST 1 - Music Player"""
         self.current_phase = 'test1'
         self.test1_start_time = datetime.now()
         self.set_test_status(1, 'running')
@@ -427,18 +397,14 @@ class ComboTest:
 
         filepath = self.playlist[self.current_index]
 
-        # Oblicz fragment z configu
+        # Pobierz długość i fragment per-utwór z configu
         if self.song_length == 0:
             self.song_length = self.get_song_length(filepath)
 
-        if self._frag_start_pct == 0 and self._frag_end_pct == 100:
-            self.fragment_enabled = False
-            self.fragment_start = 0
-            self.fragment_end = self.song_length
-        else:
-            self.fragment_enabled = True
-            self.fragment_start = (self._frag_start_pct / 100) * self.song_length
-            self.fragment_end = (self._frag_end_pct / 100) * self.song_length
+        start_pct, end_pct = self.get_fragment_for_file(filepath)
+        self.fragment_enabled = (start_pct != 0 or end_pct != 100)
+        self.fragment_start = (start_pct / 100.0) * self.song_length
+        self.fragment_end = (end_pct / 100.0) * self.song_length
 
         print(f"[COMBO] Fragment: {self.format_time(self.fragment_start)} → {self.format_time(self.fragment_end)}")
 
@@ -488,25 +454,27 @@ class ComboTest:
                 text=f"Krok {self.t1_current_step + 1}/{total_steps} | Glosnosc: {vol}% | Czas: {step_duration}s"
             )
 
-            if self.fragment_enabled:
-                current_pos = pygame.mixer.music.get_pos() / 1000.0 + self.fragment_start
-                if current_pos >= self.fragment_end:
-                    pygame.mixer.music.stop()
-                    pygame.mixer.music.load(filepath)
-                    pygame.mixer.music.play(start=self.fragment_start)
-                    pygame.mixer.music.set_volume(vol / 82.0)
+            # Pętlowanie fragmentu
+            if self.fragment_enabled and self.fragment_end > 0:
+                pos_ms = pygame.mixer.music.get_pos()
+                if pos_ms >= 0:
+                    current_pos = pos_ms / 1000.0 + self.fragment_start
+                    if current_pos >= self.fragment_end:
+                        pygame.mixer.music.stop()
+                        pygame.mixer.music.load(filepath)
+                        pygame.mixer.music.play(start=self.fragment_start)
+                        pygame.mixer.music.set_volume(vol / 82.0)
 
             self.t1_current_step += 1
             self.combo_job = self.window.after(step_duration * 1000, t1_step)
 
         t1_step()
 
-    # ==============
-    # === TEST 2 ===
-    # ==============
+    # ─────────────────────────────────────────
+    # TEST 2
+    # ─────────────────────────────────────────
 
     def run_test2(self):
-        """Uruchamia TEST 2 - Tone Generator Sweep"""
         self.current_phase = 'test2'
         self.test2_start_time = datetime.now()
         self.set_test_status(2, 'running')
@@ -568,7 +536,6 @@ class ComboTest:
         sweep_step()
 
     def generate_tone_wave(self, frequency, volume, wave_type, duration=1.0, sample_rate=44100):
-        """Generuje falę dźwiękową dla TEST 2"""
         samples = int(duration * sample_rate)
         t = np.linspace(0, duration, samples, False)
 
@@ -588,12 +555,11 @@ class ComboTest:
         wave = np.repeat(wave.reshape(-1, 1), 2, axis=1)
         return wave
 
-    # ==============
-    # === TEST 3 ===
-    # ==============
+    # ─────────────────────────────────────────
+    # TEST 3
+    # ─────────────────────────────────────────
 
     def run_test3(self):
-        """Uruchamia TEST 3 - Stereo L/R"""
         self.current_phase = 'test3'
         self.test3_start_time = datetime.now()
         self.set_test_status(3, 'running')
@@ -646,7 +612,6 @@ class ComboTest:
         play_next_channel()
 
     def play_stereo_channel(self, channel):
-        """Wątek odtwarzający dźwięk na kanale stereo"""
         try:
             sample_rate = 44100
             while not self.t3_stop_sound:
@@ -674,12 +639,11 @@ class ComboTest:
         except Exception as e:
             print(f"[COMBO] Blad watku T3: {e}")
 
-    # ==================
-    # === PRZERWA ===
-    # ==================
+    # ─────────────────────────────────────────
+    # PRZERWA
+    # ─────────────────────────────────────────
 
     def start_break(self, seconds, next_func):
-        """Wyświetla odliczanie między testami"""
         self.current_phase = 'break'
 
         def countdown(remaining):
@@ -689,19 +653,18 @@ class ComboTest:
                 next_func()
                 return
             self.phase_label.config(
-                text=f"Przerwa - nastepny test za: {remaining}s",
+                text=f"Przerwa — nastepny test za: {remaining}s",
                 fg=self.colors['orange']
             )
             self.combo_job = self.window.after(1000, lambda: countdown(remaining - 1))
 
         countdown(seconds)
 
-    # =====================
-    # === ZAKOŃCZENIE ===
-    # =====================
+    # ─────────────────────────────────────────
+    # ZAKOŃCZENIE
+    # ─────────────────────────────────────────
 
     def finish_combo(self, interrupted=False):
-        """Kończy COMBO test i zapisuje raport"""
         self.combo_running = False
         self.interrupted = interrupted
 
@@ -755,18 +718,15 @@ class ComboTest:
             text=f"Raport zapisany: {test_id} | Czas: {total_duration}s"
         )
 
-        # Odblokuj przyciski
         self.start_btn.config(state=tk.NORMAL,
                               bg=self.colors['button_bg'],
                               fg=self.colors['button_fg'])
         self.stop_btn.config(state=tk.DISABLED)
 
         print(f"[COMBO] ZAKOŃCZONY - {overall_status} | {test_id}")
-
         self.window.after(3000, self.show_complete_message)
 
     def show_complete_message(self):
-        """Pokazuje komunikat zakończenia"""
         msg_window = tk.Toplevel(self.window)
         msg_window.title("Test zakończony")
         msg_window.geometry("400x150")
@@ -795,7 +755,6 @@ class ComboTest:
         msg_window.after(3000, lambda: self.restart_after_success(msg_window))
 
     def restart_after_success(self, msg_window):
-        """Zamyka komunikat i skanuje nowy S/N"""
         try:
             msg_window.destroy()
 
@@ -831,7 +790,6 @@ class ComboTest:
             self.back_to_menu()
 
     def stop_combo_test(self):
-        """Zatrzymuje COMBO test"""
         if not self.combo_running:
             return
 
@@ -863,8 +821,11 @@ class ComboTest:
 
         self.finish_combo(interrupted=True)
 
+    # ─────────────────────────────────────────
+    # UTILS
+    # ─────────────────────────────────────────
+
     def get_song_length(self, filepath):
-        """Pobiera długość pliku audio w sekundach"""
         try:
             try:
                 from mutagen import File as MutagenFile
@@ -880,14 +841,12 @@ class ComboTest:
             return 0
 
     def format_time(self, seconds):
-        """Formatuje sekundy do MM:SS"""
         seconds = int(seconds)
         m = seconds // 60
         s = seconds % 60
         return f"{m}:{s:02d}"
 
     def back_to_menu(self):
-        """Wraca do głównego menu"""
         self.combo_running = False
         self.t3_stop_sound = True
         pygame.mixer.stop()

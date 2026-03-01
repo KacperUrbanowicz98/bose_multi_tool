@@ -50,7 +50,7 @@ class AudioMultiTool:
         self.engineering_mode_active = False
         self.key_sequence = []
         self.last_key_time = 0
-        self.root.bind('<KeyPress>', self.check_engineering_mode_sequence)
+        self.root.bind('<Key>', self.check_engineering_mode_sequence)
 
         audio_config = self.config_mgr.get_audio_config()
         success = self.resource_mgr.init_pygame(
@@ -176,7 +176,8 @@ class AudioMultiTool:
 
         eng_window = tk.Toplevel(self.root)
         eng_window.title("Tryb Inżynieryjny")
-        eng_window.geometry("800x850")
+        eng_window.geometry("960x880")
+        eng_window.resizable(True, True)
         eng_window.configure(bg=self.COLORS['bg_main'])
         eng_window.protocol("WM_DELETE_WINDOW", lambda: self.close_engineering_mode(eng_window))
 
@@ -283,8 +284,8 @@ class AudioMultiTool:
 
         self.sample_rate_var = tk.StringVar(value=str(self.config_mgr.get('audio.sample_rate', 44100)))
         sample_rate_combo = ttk.Combobox(sr_frame, textvariable=self.sample_rate_var,
-                                         values=['22050', '44100', '48000', '96000'],
-                                         width=15, state='readonly')
+                                          values=['22050', '44100', '48000', '96000'],
+                                          width=15, state='readonly')
         sample_rate_combo.pack(side=tk.LEFT, padx=10)
 
         ch_frame = tk.Frame(audio_tab, bg=self.COLORS['bg_main'])
@@ -296,7 +297,7 @@ class AudioMultiTool:
 
         self.channels_var = tk.StringVar(value=str(self.config_mgr.get('audio.channels', 2)))
         channels_combo = ttk.Combobox(ch_frame, textvariable=self.channels_var,
-                                      values=['1', '2'], width=15, state='readonly')
+                                       values=['1', '2'], width=15, state='readonly')
         channels_combo.pack(side=tk.LEFT, padx=10)
 
         buf_frame = tk.Frame(audio_tab, bg=self.COLORS['bg_main'])
@@ -308,8 +309,8 @@ class AudioMultiTool:
 
         self.buffer_var = tk.StringVar(value=str(self.config_mgr.get('audio.buffer_size', 512)))
         buffer_combo = ttk.Combobox(buf_frame, textvariable=self.buffer_var,
-                                    values=['256', '512', '1024', '2048'],
-                                    width=15, state='readonly')
+                                     values=['256', '512', '1024', '2048'],
+                                     width=15, state='readonly')
         buffer_combo.pack(side=tk.LEFT, padx=10)
 
         tk.Button(audio_tab,
@@ -357,7 +358,7 @@ class AudioMultiTool:
 
         self.max_volume_var = tk.StringVar(value=str(self.config_mgr.get('music_player.max_volume', 82)))
         max_vol_spin = tk.Spinbox(vol_frame, from_=1, to=100,
-                                  textvariable=self.max_volume_var, width=10, font=('Arial', 9))
+                                   textvariable=self.max_volume_var, width=10, font=('Arial', 9))
         max_vol_spin.pack(side=tk.LEFT, padx=10)
 
         tk.Label(vol_frame, text="%",
@@ -403,8 +404,8 @@ class AudioMultiTool:
         config_btn_frame.pack(fill=tk.X, pady=8)
 
         for text, cmd in [("ZAPISZ", self.save_config_from_editor),
-                          ("PRZEŁADUJ", self.load_config_to_editor),
-                          ("RESETUJ", self.reset_config_with_confirmation)]:
+                           ("PRZEŁADUJ", self.load_config_to_editor),
+                           ("RESETUJ", self.reset_config_with_confirmation)]:
             tk.Button(config_btn_frame, text=text, command=cmd,
                       bg=self.COLORS['button_bg'], fg=self.COLORS['button_fg'],
                       activebackground=self.COLORS['button_hover'],
@@ -438,7 +439,7 @@ class AudioMultiTool:
         duration_var = tk.StringVar(value=str(current_duration))
 
         duration_spinbox = tk.Spinbox(duration_frame, from_=1, to=60,
-                                      textvariable=duration_var, width=10, font=('Arial', 10))
+                                       textvariable=duration_var, width=10, font=('Arial', 10))
         duration_spinbox.pack(pady=(0, 10), padx=10, anchor='w')
 
         volume_frame_outer = tk.Frame(test1_auto_tab, bg=self.COLORS['bg_card'], relief=tk.SOLID, bd=1)
@@ -459,8 +460,8 @@ class AudioMultiTool:
         list_frame_t1.pack(side='left', fill='both', expand=True)
 
         volumes_listbox = tk.Listbox(list_frame_t1, height=8, font=('Arial', 9),
-                                     selectmode=tk.SINGLE, bg='#FFFFFF',
-                                     fg=self.COLORS['text_primary'], bd=1, relief=tk.SOLID)
+                                      selectmode=tk.SINGLE, bg='#FFFFFF',
+                                      fg=self.COLORS['text_primary'], bd=1, relief=tk.SOLID)
         volumes_listbox.pack(side='left', fill='both', expand=True)
 
         scrollbar_t1 = tk.Scrollbar(list_frame_t1, command=volumes_listbox.yview)
@@ -476,8 +477,8 @@ class AudioMultiTool:
         def add_volume():
             try:
                 new_vol = simpledialog.askinteger("Dodaj poziom",
-                                                  "Podaj poziom głośności (1-100):",
-                                                  minvalue=1, maxvalue=100)
+                                                   "Podaj poziom głośności (1-100):",
+                                                   minvalue=1, maxvalue=100)
                 if new_vol:
                     volumes_listbox.insert(tk.END, f"{new_vol}%")
             except:
@@ -510,8 +511,8 @@ class AudioMultiTool:
                  fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
 
         preview_label = tk.Label(preview_frame, text="",
-                                 font=('Arial', 9), bg=self.COLORS['bg_card'],
-                                 fg=self.COLORS['text_secondary'], justify='left')
+                                  font=('Arial', 9), bg=self.COLORS['bg_card'],
+                                  fg=self.COLORS['text_secondary'], justify='left')
         preview_label.pack(padx=10, pady=(0, 10), anchor='w')
 
         def update_preview():
@@ -660,8 +661,8 @@ class AudioMultiTool:
                  fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
 
         preview_label2 = tk.Label(preview_frame2, text="",
-                                  font=('Arial', 9), bg=self.COLORS['bg_card'],
-                                  fg=self.COLORS['text_secondary'], justify='left')
+                                   font=('Arial', 9), bg=self.COLORS['bg_card'],
+                                   fg=self.COLORS['text_secondary'], justify='left')
         preview_label2.pack(padx=10, pady=(0, 10), anchor='w')
 
         def update_preview2():
@@ -793,8 +794,8 @@ class AudioMultiTool:
                  fg=self.COLORS['text_primary']).pack(pady=(10, 5), padx=10, anchor='w')
 
         preview_label3 = tk.Label(preview_frame3, text="",
-                                  font=('Arial', 9), bg=self.COLORS['bg_card'],
-                                  fg=self.COLORS['text_secondary'], justify='left')
+                                   font=('Arial', 9), bg=self.COLORS['bg_card'],
+                                   fg=self.COLORS['text_secondary'], justify='left')
         preview_label3.pack(padx=10, pady=(0, 10), anchor='w')
 
         def update_preview3():
@@ -857,23 +858,23 @@ class AudioMultiTool:
                   width=30, height=2).pack(pady=15)
 
         # =====================================
-        # === ZAKŁADKA 8: PLAYLISTA & FRAGMENTY ===  <-- NOWA
+        # === ZAKŁADKA 8: PLAYLISTA & FRAGMENTY ===
         # =====================================
         playlist_tab = tk.Frame(notebook, bg=self.COLORS['bg_main'], padx=15, pady=15)
         notebook.add(playlist_tab, text="Playlista & Fragmenty")
 
         tk.Label(playlist_tab,
-                 text="Playlista i fragment dla TEST 1 / COMBO",
+                 text="Playlista i fragmenty dla TEST 1 / COMBO",
                  font=('Arial', 12, 'bold'),
                  bg=self.COLORS['bg_main'],
-                 fg=self.COLORS['text_primary']).pack(pady=(0, 15))
+                 fg=self.COLORS['text_primary']).pack(pady=(0, 10))
 
         # --- LISTA PLIKÓW ---
         list_outer = tk.Frame(playlist_tab, bg=self.COLORS['bg_card'], relief=tk.SOLID, bd=1)
-        list_outer.pack(fill='both', expand=True, padx=10, pady=(0, 10))
+        list_outer.pack(fill='both', expand=True, padx=10, pady=(0, 8))
 
         tk.Label(list_outer,
-                 text="Pliki audio w playliście:",
+                 text="Pliki audio w playliście (kliknij aby edytować fragment):",
                  font=('Arial', 9, 'bold'),
                  bg=self.COLORS['bg_card'],
                  fg=self.COLORS['text_primary']).pack(anchor='w', padx=10, pady=(8, 3))
@@ -898,10 +899,19 @@ class AudioMultiTool:
         eng_playlist_box.pack(side=tk.LEFT, fill='both', expand=True)
         pl_scroll.config(command=eng_playlist_box.yview)
 
-        # Załaduj aktualną playlistę z configu
-        current_pl = self.config_mgr.get('music_player.playlist', [])
-        for f in current_pl:
-            eng_playlist_box.insert(tk.END, os.path.basename(f))
+        def refresh_playlist_box():
+            eng_playlist_box.delete(0, tk.END)
+            pl = self.config_mgr.get('music_player.playlist', [])
+            frags = self.config_mgr.get('music_player.fragments', {})
+            for f in pl:
+                name = os.path.basename(f)
+                frag = frags.get(f, {})
+                s = frag.get('start_pct', 0)
+                e = frag.get('end_pct', 100)
+                suffix = f" [{s}%→{e}%]" if (s != 0 or e != 100) else " [cały]"
+                eng_playlist_box.insert(tk.END, name + suffix)
+
+        refresh_playlist_box()
 
         # Przyciski playlisty
         pl_btn_frame = tk.Frame(list_outer, bg=self.COLORS['bg_card'])
@@ -921,9 +931,9 @@ class AudioMultiTool:
                 for p in paths:
                     if p not in pl:
                         pl.append(p)
-                        eng_playlist_box.insert(tk.END, os.path.basename(p))
                 self.config_mgr.set('music_player.playlist', pl)
                 self.config_mgr.save_config()
+                refresh_playlist_box()
 
         def eng_remove_file():
             sel = eng_playlist_box.curselection()
@@ -933,16 +943,21 @@ class AudioMultiTool:
             idx = sel[0]
             pl = self.config_mgr.get('music_player.playlist', [])
             if idx < len(pl):
+                removed = pl[idx]
                 pl.pop(idx)
+                frags = self.config_mgr.get('music_player.fragments', {})
+                frags.pop(removed, None)
                 self.config_mgr.set('music_player.playlist', pl)
+                self.config_mgr.set('music_player.fragments', frags)
                 self.config_mgr.save_config()
-            eng_playlist_box.delete(idx)
+                refresh_playlist_box()
 
         def eng_clear_files():
-            if messagebox.askyesno("Potwierdzenie", "Wyczyścić całą playlistę?"):
+            if messagebox.askyesno("Potwierdzenie", "Wyczyścić całą playlistę i fragmenty?"):
                 self.config_mgr.set('music_player.playlist', [])
+                self.config_mgr.set('music_player.fragments', {})
                 self.config_mgr.save_config()
-                eng_playlist_box.delete(0, tk.END)
+                refresh_playlist_box()
 
         for btn_text, btn_cmd in [("+ DODAJ PLIKI", eng_add_files),
                                    ("✖ USUŃ", eng_remove_file),
@@ -954,91 +969,336 @@ class AudioMultiTool:
                       bd=2, relief=tk.SOLID, font=('Arial', 8), width=13
                       ).pack(side=tk.LEFT, padx=3)
 
-        # --- WYBÓR FRAGMENTU ---
+        # --- EDYCJA FRAGMENTU (inline) ---
         frag_outer = tk.Frame(playlist_tab, bg=self.COLORS['bg_card'], relief=tk.SOLID, bd=1)
-        frag_outer.pack(fill='x', padx=10, pady=(0, 10))
+        frag_outer.pack(fill='x', padx=10, pady=(0, 8))
 
         tk.Label(frag_outer,
-                 text="Wybór fragmentu utworu (%):",
-                 font=('Arial', 9, 'bold'),
+                 text="✏ Edytuj fragment wybranego utworu:",
+                 font=('Arial', 8, 'bold'),
                  bg=self.COLORS['bg_card'],
                  fg=self.COLORS['text_primary']).pack(anchor='w', padx=10, pady=(8, 3))
 
-        cur_start_pct = self.config_mgr.get('music_player.fragment_start_pct', 0)
-        cur_end_pct = self.config_mgr.get('music_player.fragment_end_pct', 100)
+        frag_selected_label = tk.Label(frag_outer,
+                                        text="← Wybierz utwór z listy powyżej",
+                                        font=('Arial', 8, 'italic'),
+                                        bg=self.COLORS['bg_card'],
+                                        fg=self.COLORS['text_secondary'])
+        frag_selected_label.pack(anchor='w', padx=10, pady=(0, 5))
 
-        # START %
+        # Helper – formatowanie czasu MM:SS
+        def fmt_time(sec):
+            sec = max(0, int(sec))
+            return f"{sec // 60}:{sec % 60:02d}"
+
+        # Zmienna przechowująca długość aktualnie wybranego pliku (sekundy)
+        eng_song_duration = [0]  # lista – mutowalna w zagnieżdżonych funkcjach
+
+        # Suwak START
         start_row = tk.Frame(frag_outer, bg=self.COLORS['bg_card'])
         start_row.pack(fill='x', padx=10, pady=2)
 
-        tk.Label(start_row, text="START %:",
+        tk.Label(start_row, text="START:",
                  font=('Arial', 8, 'bold'), bg=self.COLORS['bg_card'],
                  fg=self.COLORS['text_primary'], width=9, anchor='w').pack(side='left')
 
-        eng_start_var = tk.IntVar(value=cur_start_pct)
+        eng_start_var = tk.IntVar(value=0)
+        eng_start_time_lbl = tk.Label(start_row, text="0:00",
+                                       font=('Arial', 8), bg=self.COLORS['bg_card'],
+                                       fg=self.COLORS['text_primary'], width=6)
+        eng_start_time_lbl.pack(side='right')
+
         eng_start_slider = tk.Scale(
             start_row, from_=0, to=100, orient=tk.HORIZONTAL,
             variable=eng_start_var,
             bg=self.COLORS['bg_card'], fg=self.COLORS['text_primary'],
             troughcolor='#FFFFFF', highlightthickness=0,
-            bd=0, relief=tk.FLAT
+            showvalue=0, bd=0, relief=tk.FLAT, state=tk.DISABLED
         )
         eng_start_slider.pack(side='left', fill='x', expand=True, padx=5)
 
-        # KONIEC %
+        # Suwak END
         end_row = tk.Frame(frag_outer, bg=self.COLORS['bg_card'])
         end_row.pack(fill='x', padx=10, pady=2)
 
-        tk.Label(end_row, text="KONIEC %:",
+        tk.Label(end_row, text="KONIEC:",
                  font=('Arial', 8, 'bold'), bg=self.COLORS['bg_card'],
                  fg=self.COLORS['text_primary'], width=9, anchor='w').pack(side='left')
 
-        eng_end_var = tk.IntVar(value=cur_end_pct)
+        eng_end_var = tk.IntVar(value=100)
+        eng_end_time_lbl = tk.Label(end_row, text="0:00",
+                                     font=('Arial', 8), bg=self.COLORS['bg_card'],
+                                     fg=self.COLORS['text_primary'], width=6)
+        eng_end_time_lbl.pack(side='right')
+
         eng_end_slider = tk.Scale(
             end_row, from_=0, to=100, orient=tk.HORIZONTAL,
             variable=eng_end_var,
             bg=self.COLORS['bg_card'], fg=self.COLORS['text_primary'],
             troughcolor='#FFFFFF', highlightthickness=0,
-            bd=0, relief=tk.FLAT
+            showvalue=0, bd=0, relief=tk.FLAT, state=tk.DISABLED
         )
         eng_end_slider.pack(side='left', fill='x', expand=True, padx=5)
 
-        frag_info = tk.Label(frag_outer,
-                             text=f"Aktualnie: {cur_start_pct}% → {cur_end_pct}%  |  0% = początek, 100% = koniec",
-                             font=('Arial', 8), bg=self.COLORS['bg_card'],
-                             fg=self.COLORS['text_secondary'])
-        frag_info.pack(padx=10, pady=(2, 8))
+        frag_info_lbl = tk.Label(frag_outer,
+                                  text="",
+                                  font=('Arial', 8),
+                                  bg=self.COLORS['bg_card'],
+                                  fg=self.COLORS['text_secondary'])
+        frag_info_lbl.pack(padx=10, pady=(2, 5))
 
-        def update_frag_info(*args):
-            s = eng_start_var.get()
-            e = eng_end_var.get()
-            frag_info.config(text=f"Aktualnie: {s}% → {e}%  |  0% = początek, 100% = koniec")
+        def update_frag_info_lbl(*args):
+            dur = eng_song_duration[0]
+            if dur > 0:
+                s_sec = int(eng_start_var.get() / 100.0 * dur)
+                e_sec = int(eng_end_var.get() / 100.0 * dur)
+                eng_start_time_lbl.config(text=fmt_time(s_sec))
+                eng_end_time_lbl.config(text=fmt_time(e_sec))
+                frag_info_lbl.config(
+                    text=f"Fragment: {fmt_time(s_sec)} → {fmt_time(e_sec)}  "
+                         f"(długość: {fmt_time(e_sec - s_sec)} / {fmt_time(int(dur))})"
+                )
+            else:
+                frag_info_lbl.config(
+                    text=f"Fragment: {eng_start_var.get()}% → {eng_end_var.get()}%  (brak info o długości)"
+                )
 
-        eng_start_var.trace('w', update_frag_info)
-        eng_end_var.trace('w', update_frag_info)
+        eng_start_var.trace('w', update_frag_info_lbl)
+        eng_end_var.trace('w', update_frag_info_lbl)
 
-        def save_playlist_and_fragment():
-            s = eng_start_var.get()
-            e = eng_end_var.get()
-            if s >= e:
-                messagebox.showerror("Błąd", "START musi być mniejszy niż KONIEC!")
+        def get_audio_duration(filepath):
+            """Próbuje odczytać długość pliku audio przez mutagen lub pygame."""
+            try:
+                import mutagen
+                audio = mutagen.File(filepath)
+                if audio and hasattr(audio, 'info') and audio.info:
+                    return audio.info.length
+            except Exception:
+                pass
+            try:
+                import pygame
+                snd = pygame.mixer.Sound(filepath)
+                return snd.get_length()
+            except Exception:
+                pass
+            return 0
+
+        def on_playlist_select(event):
+            sel = eng_playlist_box.curselection()
+            if not sel:
                 return
-            self.config_mgr.set('music_player.fragment_start_pct', s)
-            self.config_mgr.set('music_player.fragment_end_pct', e)
-            self.config_mgr.save_config()
-            messagebox.showinfo("Zapisano ✓",
-                                f"Playlista i fragment zapisane!\n\n"
-                                f"Fragment: {s}% → {e}%\n"
-                                f"Pliki w playliście: {eng_playlist_box.size()}")
+            idx = sel[0]
+            pl = self.config_mgr.get('music_player.playlist', [])
+            if idx >= len(pl):
+                return
+            filepath = pl[idx]
+            frags = self.config_mgr.get('music_player.fragments', {})
+            frag = frags.get(filepath, {})
+            s = frag.get('start_pct', 0)
+            e = frag.get('end_pct', 100)
+
+            dur = get_audio_duration(filepath)
+            eng_song_duration[0] = dur
+
+            dur_str = f"  ({fmt_time(int(dur))})" if dur > 0 else ""
+            frag_selected_label.config(
+                text=f"Wybrany: {os.path.basename(filepath)}{dur_str}",
+                fg=self.COLORS['text_primary'],
+                font=('Arial', 8, 'bold')
+            )
+
+            eng_start_slider.config(state=tk.NORMAL)
+            eng_end_slider.config(state=tk.NORMAL)
+            eng_start_var.set(s)
+            eng_end_var.set(e)
+            update_frag_info_lbl()
+
+        eng_playlist_box.bind('<<ListboxSelect>>', on_playlist_select)
+
+        # Przycisk EDYTUJ FRAGMENT – osobne okno z suwakami w sekundach
+        def open_fragment_editor():
+            sel = eng_playlist_box.curselection()
+            if not sel:
+                messagebox.showwarning("Brak wyboru", "Wybierz utwór z listy!")
+                return
+            idx = sel[0]
+            pl = self.config_mgr.get('music_player.playlist', [])
+            if idx >= len(pl):
+                return
+            filepath = pl[idx]
+            frags = self.config_mgr.get('music_player.fragments', {})
+            frag = frags.get(filepath, {})
+            cur_s = frag.get('start_pct', 0)
+            cur_e = frag.get('end_pct', 100)
+
+            # Pobierz długość pliku
+            dur = get_audio_duration(filepath)
+
+            edit_win = tk.Toplevel(eng_window)
+            edit_win.title(f"Fragment: {os.path.basename(filepath)}")
+            edit_win.geometry("520x320")
+            edit_win.configure(bg='#FFFFFF')
+            edit_win.resizable(False, False)
+            edit_win.grab_set()
+            edit_win.transient(eng_window)
+            edit_win.update_idletasks()
+            x = (edit_win.winfo_screenwidth() // 2) - 260
+            y = (edit_win.winfo_screenheight() // 2) - 160
+            edit_win.geometry(f"+{x}+{y}")
+
+            tk.Label(edit_win,
+                     text="✂ Edycja fragmentu",
+                     font=('Arial', 12, 'bold'),
+                     bg='#FFFFFF', fg='#000000').pack(pady=(15, 3))
+
+            dur_info = f"  ({fmt_time(int(dur))})" if dur > 0 else ""
+            tk.Label(edit_win,
+                     text=os.path.basename(filepath) + dur_info,
+                     font=('Arial', 9),
+                     bg='#FFFFFF', fg='#666666').pack(pady=(0, 10))
+
+            tk.Frame(edit_win, bg='#000000', height=1).pack(fill='x', padx=20, pady=(0, 10))
+
+            # START suwak
+            s_row = tk.Frame(edit_win, bg='#FFFFFF')
+            s_row.pack(fill='x', padx=20, pady=4)
+
+            tk.Label(s_row, text="START:", font=('Arial', 9, 'bold'),
+                     bg='#FFFFFF', fg='#000000', width=10, anchor='w').pack(side='left')
+
+            win_start_var = tk.IntVar(value=cur_s)
+
+            if dur > 0:
+                start_display = fmt_time(int(cur_s / 100.0 * dur))
+            else:
+                start_display = f"{cur_s}%"
+            win_start_lbl = tk.Label(s_row, text=start_display,
+                                      font=('Arial', 9), bg='#FFFFFF',
+                                      fg='#000000', width=7)
+            win_start_lbl.pack(side='right')
+
+            def on_start_change(v):
+                val = int(float(v))
+                if dur > 0:
+                    win_start_lbl.config(text=fmt_time(int(val / 100.0 * dur)))
+                else:
+                    win_start_lbl.config(text=f"{val}%")
+
+            tk.Scale(s_row, from_=0, to=99, orient=tk.HORIZONTAL,
+                     variable=win_start_var,
+                     bg='#FFFFFF', fg='#000000',
+                     troughcolor='#F5F5F5', highlightthickness=0,
+                     showvalue=0, bd=0, relief=tk.FLAT,
+                     command=on_start_change
+                     ).pack(side='left', fill='x', expand=True, padx=5)
+
+            # END suwak
+            e_row = tk.Frame(edit_win, bg='#FFFFFF')
+            e_row.pack(fill='x', padx=20, pady=4)
+
+            tk.Label(e_row, text="KONIEC:", font=('Arial', 9, 'bold'),
+                     bg='#FFFFFF', fg='#000000', width=10, anchor='w').pack(side='left')
+
+            win_end_var = tk.IntVar(value=cur_e)
+
+            if dur > 0:
+                end_display = fmt_time(int(cur_e / 100.0 * dur))
+            else:
+                end_display = f"{cur_e}%"
+            win_end_lbl = tk.Label(e_row, text=end_display,
+                                    font=('Arial', 9), bg='#FFFFFF',
+                                    fg='#000000', width=7)
+            win_end_lbl.pack(side='right')
+
+            def on_end_change(v):
+                val = int(float(v))
+                if dur > 0:
+                    win_end_lbl.config(text=fmt_time(int(val / 100.0 * dur)))
+                else:
+                    win_end_lbl.config(text=f"{val}%")
+
+            tk.Scale(e_row, from_=1, to=100, orient=tk.HORIZONTAL,
+                     variable=win_end_var,
+                     bg='#FFFFFF', fg='#000000',
+                     troughcolor='#F5F5F5', highlightthickness=0,
+                     showvalue=0, bd=0, relief=tk.FLAT,
+                     command=on_end_change
+                     ).pack(side='left', fill='x', expand=True, padx=5)
+
+            # Podgląd
+            preview_lbl = tk.Label(edit_win, text="",
+                                    font=('Arial', 9),
+                                    bg='#FFFFFF', fg='#666666')
+            preview_lbl.pack(pady=8)
+
+            def update_preview(*args):
+                s = win_start_var.get()
+                e = win_end_var.get()
+                if dur > 0:
+                    s_sec = int(s / 100.0 * dur)
+                    e_sec = int(e / 100.0 * dur)
+                    preview_lbl.config(
+                        text=f"Fragment: {fmt_time(s_sec)} → {fmt_time(e_sec)}  "
+                             f"(długość: {fmt_time(e_sec - s_sec)} / {fmt_time(int(dur))})"
+                    )
+                else:
+                    preview_lbl.config(text=f"Fragment: {s}% → {e}%")
+
+            win_start_var.trace('w', update_preview)
+            win_end_var.trace('w', update_preview)
+            update_preview()
+
+            btn_row = tk.Frame(edit_win, bg='#FFFFFF')
+            btn_row.pack(pady=10)
+
+            def save_fragment():
+                s = win_start_var.get()
+                e = win_end_var.get()
+                if s >= e:
+                    messagebox.showerror("Błąd", "START musi być mniejszy niż KONIEC!")
+                    return
+                frags = self.config_mgr.get('music_player.fragments', {})
+                if s == 0 and e == 100:
+                    frags.pop(filepath, None)
+                else:
+                    frags[filepath] = {'start_pct': s, 'end_pct': e}
+                self.config_mgr.set('music_player.fragments', frags)
+                self.config_mgr.save_config()
+                refresh_playlist_box()
+                eng_start_var.set(s)
+                eng_end_var.set(e)
+                edit_win.destroy()
+                if dur > 0:
+                    s_sec = int(s / 100.0 * dur)
+                    e_sec = int(e / 100.0 * dur)
+                    info = f"{fmt_time(s_sec)} → {fmt_time(e_sec)}"
+                else:
+                    info = f"{s}% → {e}%"
+                messagebox.showinfo("Zapisano ✓",
+                                    f"Fragment zapisany:\n{os.path.basename(filepath)}\n{info}")
+
+            def reset_fragment():
+                win_start_var.set(0)
+                win_end_var.set(100)
+
+            tk.Button(btn_row, text="💾 ZAPISZ FRAGMENT", command=save_fragment,
+                      bg='#FFFFFF', fg='#000000',
+                      activebackground='#000000', activeforeground='#FFFFFF',
+                      bd=2, relief=tk.SOLID, font=('Arial', 9, 'bold'), width=18).pack(side='left', padx=5)
+
+            tk.Button(btn_row, text="↺ RESETUJ (0-100%)", command=reset_fragment,
+                      bg='#FFFFFF', fg='#666666',
+                      activebackground='#000000', activeforeground='#FFFFFF',
+                      bd=1, relief=tk.SOLID, font=('Arial', 8), width=18).pack(side='left', padx=5)
 
         tk.Button(playlist_tab,
-                  text="💾 ZAPISZ PLAYLISTĘ I FRAGMENT",
-                  command=save_playlist_and_fragment,
+                  text="✏ EDYTUJ FRAGMENT WYBRANEGO UTWORU",
+                  command=open_fragment_editor,
                   bg=self.COLORS['button_bg'], fg=self.COLORS['button_fg'],
                   activebackground=self.COLORS['button_hover'],
                   activeforeground=self.COLORS['button_hover_fg'],
-                  bd=2, relief=tk.SOLID, font=('Arial', 9, 'bold'),
-                  width=30, height=2).pack(pady=15)
+                  bd=2, relief=tk.SOLID, font=('Arial', 8, 'bold'),
+                  width=35, height=2).pack(pady=(5, 10))
 
         # === FOOTER ===
         footer_frame = tk.Frame(eng_window, bg=self.COLORS['bg_main'], padx=15, pady=15)
@@ -1078,8 +1338,8 @@ class AudioMultiTool:
                  fg=self.COLORS['text_primary']).pack(pady=(20, 5))
 
         hrid_entry = tk.Entry(add_window, font=('Arial', 11), width=20,
-                              bg=self.COLORS['bg_card'], fg=self.COLORS['text_primary'],
-                              bd=2, relief=tk.SOLID, justify='center')
+                               bg=self.COLORS['bg_card'], fg=self.COLORS['text_primary'],
+                               bd=2, relief=tk.SOLID, justify='center')
         hrid_entry.pack(pady=10)
         hrid_entry.focus()
 
@@ -1340,10 +1600,10 @@ class AudioMultiTool:
 
         serial_var = tk.StringVar()
         serial_entry = tk.Entry(entry_frame, textvariable=serial_var,
-                                font=('Arial', 12), width=25,
-                                bg=self.COLORS['bg_card'], fg=self.COLORS['text_primary'],
-                                insertbackground=self.COLORS['text_primary'],
-                                bd=2, relief=tk.SOLID, justify='center')
+                                 font=('Arial', 12), width=25,
+                                 bg=self.COLORS['bg_card'], fg=self.COLORS['text_primary'],
+                                 insertbackground=self.COLORS['text_primary'],
+                                 bd=2, relief=tk.SOLID, justify='center')
         serial_entry.pack(side='left')
         serial_entry.focus()
 
@@ -1405,9 +1665,9 @@ class AudioMultiTool:
             from music_player_test import MusicPlayerTest
 
             test = MusicPlayerTest(test_window,
-                                   operator_hrid=self.logged_operator,
-                                   device_serial=device_serial,
-                                   scan_callback=self.scan_serial_number)
+                                    operator_hrid=self.logged_operator,
+                                    device_serial=device_serial,
+                                    scan_callback=self.scan_serial_number)
 
             self.resource_mgr.register_window(test_window, 'music_player')
             self.current_test_window = test_window
@@ -1454,9 +1714,9 @@ class AudioMultiTool:
                     pass
 
             ToneGeneratorTest(test_frame, close_test,
-                              operator_hrid=self.logged_operator,
-                              device_serial=device_serial,
-                              scan_callback=self.scan_serial_number)
+                               operator_hrid=self.logged_operator,
+                               device_serial=device_serial,
+                               scan_callback=self.scan_serial_number)
 
             self.resource_mgr.register_window(test_window, 'tone_generator')
             self.current_test_window = test_window
@@ -1490,9 +1750,9 @@ class AudioMultiTool:
             test_window.attributes('-topmost', True)
 
             test = StereoTest(test_window,
-                              operator_hrid=self.logged_operator,
-                              device_serial=device_serial,
-                              scan_callback=self.scan_serial_number)
+                               operator_hrid=self.logged_operator,
+                               device_serial=device_serial,
+                               scan_callback=self.scan_serial_number)
 
             def close_test():
                 try:

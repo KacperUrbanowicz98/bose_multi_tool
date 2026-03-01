@@ -161,7 +161,7 @@ class LoginScreen:
                  fg=self.COLORS['text_secondary']).pack()
 
         tk.Label(footer_frame,
-                 text="v1.0.0",
+                 text="v1.0.2",
                  font=('Arial', 6),
                  bg=self.COLORS['bg_main'],
                  fg=self.COLORS['text_secondary']).pack()
