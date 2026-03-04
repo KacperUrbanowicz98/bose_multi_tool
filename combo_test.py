@@ -63,6 +63,7 @@ class ComboTest:
         self.combo_start_time = None
         self.current_phase = None
         self.combo_job = None
+        self.total_duration = 0
         self.interrupted = False
 
         # Playlista i fragmenty per-utwór z configu
@@ -362,6 +363,9 @@ class ComboTest:
         elif status == 'running':
             label.config(text="W TOKU...", fg=self.colors['blue'])
             frame.config(bg='#E3F2FD')
+        elif status == 'done':
+            label.config(text="UKOŃCZONY ✓", fg=self.colors['blue'])
+            frame.config(bg='#E3F2FD')
         elif status == 'pass':
             label.config(text="PASS ✓", fg=self.colors['green'])
             frame.config(bg='#E8F5E9')
@@ -442,9 +446,10 @@ class ComboTest:
                     'audio_file': audio_file,
                     'volume_levels': self.t1_volume_levels_copy
                 }
-                self.set_test_status(1, 'pass')
-                print(f"[COMBO] TEST 1 PASS ({duration}s)")
+                self.set_test_status(1, 'done')
+                print(f"[COMBO] TEST 1 ukończony ({duration}s)")
                 self.start_break(2, self.run_test2)
+
                 return
 
             vol = self.t1_volume_levels_copy[self.t1_current_step]
@@ -503,8 +508,8 @@ class ComboTest:
                     'wave_type': self.t2_wave_type,
                     'freq_range': f"{self.t2_freq_min}-{self.t2_freq_max}"
                 }
-                self.set_test_status(2, 'pass')
-                print(f"[COMBO] TEST 2 PASS ({duration}s)")
+                self.set_test_status(2, 'done')
+                print(f"[COMBO] TEST 2 ukończony ({duration}s)")
                 self.start_break(2, self.run_test3)
                 return
 
@@ -579,8 +584,8 @@ class ComboTest:
                     'duration': duration,
                     'duration_per_channel': self.t3_duration_per_channel
                 }
-                self.set_test_status(3, 'pass')
-                print(f"[COMBO] TEST 3 PASS ({duration}s)")
+                self.set_test_status(3, 'done')
+                print(f"[COMBO] TEST 3 ukończony ({duration}s)")
                 self.finish_combo(interrupted=False)
                 return
 
@@ -672,26 +677,162 @@ class ComboTest:
         pygame.mixer.music.stop()
         self.t3_stop_sound = True
 
-        total_duration = 0
+        self.total_duration = 0
         if self.combo_start_time:
-            total_duration = int((datetime.now() - self.combo_start_time).total_seconds())
+            self.total_duration = int((datetime.now() - self.combo_start_time).total_seconds())
 
         if not self.test1_data:
-            self.test1_data = {
-                'status': 'INTERRUPTED', 'duration': 0,
-                'audio_file': 'N/A', 'volume_levels': []
-            }
+            self.test1_data = {'status': 'INTERRUPTED', 'duration': 0,
+                               'audio_file': 'N/A', 'volume_levels': []}
         if not self.test2_data:
-            self.test2_data = {
-                'status': 'INTERRUPTED', 'duration': 0,
-                'wave_type': self.t2_wave_type,
-                'freq_range': f"{self.t2_freq_min}-{self.t2_freq_max}"
-            }
+            self.test2_data = {'status': 'INTERRUPTED', 'duration': 0,
+                               'wave_type': self.t2_wave_type,
+                               'freq_range': f"{self.t2_freq_min}-{self.t2_freq_max}"}
         if not self.test3_data:
-            self.test3_data = {
-                'status': 'INTERRUPTED', 'duration': 0,
-                'duration_per_channel': self.t3_duration_per_channel
-            }
+            self.test3_data = {'status': 'INTERRUPTED', 'duration': 0,
+                               'duration_per_channel': self.t3_duration_per_channel}
+
+        self.start_btn.config(state=tk.NORMAL,
+                              bg=self.colors['button_bg'],
+                              fg=self.colors['button_fg'])
+        self.stop_btn.config(state=tk.DISABLED)
+
+        if interrupted:
+            self._save_and_finish(
+                t1_status='INTERRUPTED',
+                t2_status='INTERRUPTED',
+                t3_status='INTERRUPTED',
+                notes=''
+            )
+        else:
+            self.window.after(500, self.show_operator_evaluation)
+
+    def show_complete_message(self):
+        msg_window = tk.Toplevel(self.window)
+        msg_window.title("Test zakończony")
+        msg_window.geometry("380x130")
+        msg_window.configure(bg='#FFFFFF')
+        msg_window.resizable(False, False)
+        msg_window.attributes('-topmost', True)
+        msg_window.transient(self.window)
+
+        msg_window.update_idletasks()
+        x = (msg_window.winfo_screenwidth() // 2) - 190
+        y = (msg_window.winfo_screenheight() // 2) - 65
+        msg_window.geometry(f"+{x}+{y}")
+
+        tk.Label(msg_window, text="✓ Raport zapisany!",
+                 font=('Arial', 12, 'bold'),
+                 bg='#FFFFFF', fg='#4CAF50').pack(pady=(25, 5))
+
+        tk.Label(msg_window,
+                 text="Okno zamknie się za 3 sekundy...",
+                 font=('Arial', 9),
+                 bg='#FFFFFF', fg='#666666').pack()
+
+        msg_window.after(3000, lambda: self.restart_after_success(msg_window))
+
+    def show_operator_evaluation(self):
+        eval_window = tk.Toplevel(self.window)
+        eval_window.title("Ocena wyników testu")
+        eval_window.configure(bg='#FFFFFF')
+        eval_window.resizable(False, False)
+        eval_window.attributes('-topmost', True)
+        eval_window.transient(self.window)
+        eval_window.grab_set()
+
+        w, h = 420, 420
+        eval_window.update_idletasks()
+        x = (eval_window.winfo_screenwidth() // 2) - (w // 2)
+        y = (eval_window.winfo_screenheight() // 2) - (h // 2)
+        eval_window.geometry(f"{w}x{h}+{x}+{y}")
+
+        tk.Label(eval_window, text="OCENA WYNIKÓW TESTU",
+                 font=('Arial', 13, 'bold'),
+                 bg='#FFFFFF', fg='#000000').pack(pady=(18, 2))
+
+        tk.Label(eval_window, text="Zaznacz wynik dla każdego testu:",
+                 font=('Arial', 9),
+                 bg='#FFFFFF', fg='#666666').pack(pady=(0, 10))
+
+        tk.Frame(eval_window, bg='#000000', height=1).pack(fill='x', padx=20, pady=(0, 10))
+
+        t1_var = tk.StringVar(value='PASS')
+        t2_var = tk.StringVar(value='PASS')
+        t3_var = tk.StringVar(value='PASS')
+
+        for label_text, var in [
+            ("TEST 1 — Music Player", t1_var),
+            ("TEST 2 — Tone Generator", t2_var),
+            ("TEST 3 — Stereo L/R", t3_var),
+        ]:
+            row = tk.Frame(eval_window, bg='#F5F5F5', relief=tk.SOLID, bd=1)
+            row.pack(fill='x', padx=20, pady=5, ipady=6)
+
+            tk.Label(row, text=label_text,
+                     font=('Arial', 9, 'bold'),
+                     bg='#F5F5F5', fg='#000000',
+                     anchor='w').pack(side='left', padx=12)
+
+            btn_frame = tk.Frame(row, bg='#F5F5F5')
+            btn_frame.pack(side='right', padx=12)
+
+            tk.Radiobutton(btn_frame, text="PASS",
+                           variable=var, value='PASS',
+                           font=('Arial', 9, 'bold'),
+                           bg='#F5F5F5', fg='#4CAF50',
+                           selectcolor='#FFFFFF',
+                           activebackground='#F5F5F5').pack(side='left', padx=8)
+
+            tk.Radiobutton(btn_frame, text="FAIL",
+                           variable=var, value='FAIL',
+                           font=('Arial', 9, 'bold'),
+                           bg='#F5F5F5', fg='#F44336',
+                           selectcolor='#FFFFFF',
+                           activebackground='#F5F5F5').pack(side='left', padx=8)
+
+        tk.Frame(eval_window, bg='#CCCCCC', height=1).pack(fill='x', padx=20, pady=(8, 4))
+
+        tk.Label(eval_window, text="Uwagi (opcjonalnie):",
+                 font=('Arial', 8),
+                 bg='#FFFFFF', fg='#666666',
+                 anchor='w').pack(fill='x', padx=20)
+
+        notes_entry = tk.Entry(eval_window,
+                               font=('Arial', 9),
+                               bg='#F5F5F5', fg='#000000',
+                               insertbackground='#000000',
+                               bd=1, relief=tk.SOLID)
+        notes_entry.pack(fill='x', padx=20, pady=(3, 10), ipady=4)
+
+        def on_confirm():
+            notes = notes_entry.get().strip()
+            eval_window.destroy()
+            self._save_and_finish(
+                t1_status=t1_var.get(),
+                t2_status=t2_var.get(),
+                t3_status=t3_var.get(),
+                notes=notes
+            )
+
+        tk.Button(eval_window, text="✔  ZATWIERDŹ WYNIKI",
+                  font=('Arial', 10, 'bold'),
+                  bg='#000000', fg='#FFFFFF',
+                  activebackground='#333333',
+                  activeforeground='#FFFFFF',
+                  bd=0, relief=tk.FLAT,
+                  width=22, height=2,
+                  command=on_confirm).pack(pady=(0, 15))
+
+    def _save_and_finish(self, t1_status, t2_status, t3_status, notes=''):
+        self.test1_data['status'] = t1_status
+        self.test2_data['status'] = t2_status
+        self.test3_data['status'] = t3_status
+
+        if notes:
+            self.test1_data['notes'] = notes
+            self.test2_data['notes'] = notes
+            self.test3_data['notes'] = notes
 
         reporter = get_test_reporter()
         test_id, overall_status = reporter.save_combo_result(
@@ -700,59 +841,28 @@ class ComboTest:
             test1_data=self.test1_data,
             test2_data=self.test2_data,
             test3_data=self.test3_data,
-            total_duration=total_duration,
-            interrupted=interrupted
+            total_duration=self.total_duration,
+            interrupted=self.interrupted
         )
 
-        if overall_status == "PASS":
-            self.phase_label.config(text="✓ COMBO TEST ZAKONCZONY - PASS",
-                                    fg=self.colors['green'])
-        elif overall_status == "INTERRUPTED":
-            self.phase_label.config(text="⚠ COMBO TEST PRZERWANY",
-                                    fg=self.colors['orange'])
-        else:
-            self.phase_label.config(text="✗ COMBO TEST - FAIL",
-                                    fg=self.colors['red'])
-
+        color_map = {
+            'PASS': self.colors['green'],
+            'FAIL': self.colors['red'],
+            'INTERRUPTED': self.colors['orange']
+        }
+        self.phase_label.config(
+            text=f"{'✓' if overall_status == 'PASS' else '✗'} COMBO TEST — {overall_status}",
+            fg=color_map.get(overall_status, self.colors['text_primary'])
+        )
         self.progress_label.config(
-            text=f"Raport zapisany: {test_id} | Czas: {total_duration}s"
+            text=f"Raport zapisany: {test_id} | Czas: {self.total_duration}s"
         )
 
-        self.start_btn.config(state=tk.NORMAL,
-                              bg=self.colors['button_bg'],
-                              fg=self.colors['button_fg'])
-        self.stop_btn.config(state=tk.DISABLED)
+        for num, status in [(1, t1_status), (2, t2_status), (3, t3_status)]:
+            self.set_test_status(num, status.lower())
 
-        print(f"[COMBO] ZAKOŃCZONY - {overall_status} | {test_id}")
-        self.window.after(3000, self.show_complete_message)
-
-    def show_complete_message(self):
-        msg_window = tk.Toplevel(self.window)
-        msg_window.title("Test zakończony")
-        msg_window.geometry("400x150")
-        msg_window.configure(bg='#FFFFFF')
-        msg_window.resizable(False, False)
-        msg_window.attributes('-topmost', True)
-        msg_window.transient(self.window)
-
-        msg_window.update_idletasks()
-        x = (msg_window.winfo_screenwidth() // 2) - 200
-        y = (msg_window.winfo_screenheight() // 2) - 75
-        msg_window.geometry(f"+{x}+{y}")
-
-        tk.Label(msg_window,
-                 text="✓ COMBO Test zakończony!",
-                 font=('Arial', 12, 'bold'),
-                 bg='#FFFFFF',
-                 fg='#4CAF50').pack(pady=(30, 10))
-
-        tk.Label(msg_window,
-                 text="Raport został zapisany.\nOkno zamknie się za 3 sekundy...",
-                 font=('Arial', 9),
-                 bg='#FFFFFF',
-                 fg='#666666').pack()
-
-        msg_window.after(3000, lambda: self.restart_after_success(msg_window))
+        print(f"[COMBO] ZAPISANO — {overall_status} | {test_id}")
+        self.window.after(2000, self.show_complete_message)
 
     def restart_after_success(self, msg_window):
         try:

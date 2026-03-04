@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import os
+import shutil
 
 def main():
     # Sprawdz czy PyInstaller jest zainstalowany
@@ -12,16 +13,38 @@ def main():
         print("[+] PyInstaller zainstalowany.\n")
 
     # Sprawdz czy pliki istnieja
-    required_files = ["main.py", "icon.ico", "audio_tool_config.json"]
+    required_files = ["main.py", "icon.ico"]
     for f in required_files:
         if not os.path.exists(f):
             print(f"[!] BRAK PLIKU: {f}")
             input("\nNaciśnij Enter aby wyjść...")
             sys.exit(1)
 
-    print("=" * 50)
+    # Szukaj audio_tool_config.json – najpierw lokalnie, potem w %APPDATA%
+    config_path = None
+    local_config = "audio_tool_config.json"
+    appdata_config = os.path.join(os.environ.get("APPDATA", ""), "AudioMultiTool", "audio_tool_config.json")
+
+    if os.path.exists(local_config):
+        config_path = os.path.abspath(local_config)
+        print(f"[+] Znaleziono config lokalnie:\n    {config_path}")
+    elif os.path.exists(appdata_config):
+        config_path = os.path.abspath(appdata_config)
+        # Skopiuj do folderu lokalnego żeby PyInstaller mógł go spakować
+        shutil.copy2(config_path, local_config)
+        config_path = os.path.abspath(local_config)
+        print(f"[+] Znaleziono config w AppData, skopiowano lokalnie:\n    {config_path}")
+    else:
+        print("[!] Nie znaleziono audio_tool_config.json!")
+        print("    Szukałem w:")
+        print(f"      - {os.path.abspath(local_config)}")
+        print(f"      - {appdata_config}")
+        input("\nNaciśnij Enter aby wyjść...")
+        sys.exit(1)
+
+    print("\n" + "=" * 55)
     print("  Bose Audio Test - Builder EXE")
-    print("=" * 50)
+    print("=" * 55)
     print("[*] Buduję .exe, poczekaj...\n")
 
     cmd = [
@@ -30,7 +53,7 @@ def main():
         "--windowed",
         "--name", "Bose - Audio Test 1.0.2",
         "--icon=icon.ico",
-        "--add-data", "audio_tool_config.json;.",
+        "--add-data", f"{config_path};.",
         "--hidden-import=pygame",
         "--hidden-import=numpy",
         "main.py"
@@ -38,14 +61,14 @@ def main():
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 
-    print("\n" + "=" * 50)
+    print("\n" + "=" * 55)
     if result.returncode == 0:
         exe_path = os.path.join("dist", "Bose - Audio Test 1.0.2.exe")
         print(f"[+] SUKCES! Plik EXE gotowy:")
         print(f"    {os.path.abspath(exe_path)}")
     else:
         print(f"[!] BŁĄD podczas budowania (kod: {result.returncode})")
-    print("=" * 50)
+    print("=" * 55)
 
     input("\nNaciśnij Enter aby zamknąć...")
 
