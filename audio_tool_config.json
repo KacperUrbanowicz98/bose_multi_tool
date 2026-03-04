@@ -1,6 +1,6 @@
 {
     "app": {
-        "version": "1.0.2",
+        "version": "1.0.3",
         "first_run": false,
         "window_geometry": {
             "main": "550x700+208+208",
