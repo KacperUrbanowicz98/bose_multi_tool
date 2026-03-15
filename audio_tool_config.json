@@ -3,7 +3,7 @@
         "version": "1.0.3",
         "first_run": false,
         "window_geometry": {
-            "main": "550x700+208+208",
+            "main": "550x700+156+156",
             "music_player": "650x865",
             "tone_generator": "580x720",
             "stereotest": "580x950"
@@ -36,8 +36,7 @@
         "default_volume": 50,
         "max_volume": 82,
         "playlist": [
-            "C:/Users/kurba/Downloads/Utwór testowy nr 1.mp3",
-            "C:/Users/kurba/Downloads/snaptik_7525855298637090070_v2 (mp3cut.net).mp3"
+            "C:/Users/kurba/Downloads/Utwór testowy nr 1.mp3"
         ],
         "equalizer": {
             "60Hz": 0,

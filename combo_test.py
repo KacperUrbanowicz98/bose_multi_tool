@@ -163,7 +163,7 @@ class ComboTest:
         # === STATUS TESTÓW ===
         status_frame = tk.LabelFrame(main,
                                      text="STATUS TESTOW",
-                                     font=('Arial', 9, 'bold'),
+                                     font=('Arial', 11, 'bold'),
                                      bg=self.colors['bg_main'],
                                      fg=self.colors['text_primary'],
                                      bd=2, relief=tk.SOLID)
@@ -179,7 +179,7 @@ class ComboTest:
         ]):
             if col > 0:
                 tk.Label(status_grid, text="→",
-                         font=('Arial', 14, 'bold'),
+                         font=('Arial', 18, 'bold'),
                          bg=self.colors['bg_main'],
                          fg=self.colors['text_secondary']).grid(
                     row=0, column=col * 2 - 1, padx=3)
@@ -190,11 +190,11 @@ class ComboTest:
             frame.grid(row=0, column=col * 2, padx=5, pady=3, ipadx=10, ipady=5)
 
             tk.Label(frame, text=name,
-                     font=('Arial', 8, 'bold'),
+                     font=('Arial', 10, 'bold'),
                      bg=self.colors['bg_card'],
                      fg=self.colors['text_primary']).pack()
             tk.Label(frame, text=subtitle,
-                     font=('Arial', 7),
+                     font=('Arial', 9),
                      bg=self.colors['bg_card'],
                      fg=self.colors['text_secondary']).pack()
 
@@ -215,42 +215,59 @@ class ComboTest:
                 self.t3_status_label = status_lbl
 
         # === INFO UTWÓR / FRAGMENT (tylko do odczytu) ===
-        info_frame = tk.Frame(main, bg='#F5F5F5', relief=tk.SOLID, bd=1)
-        info_frame.pack(fill='x', pady=(0, 10))
+        playlist_frame = tk.LabelFrame(main,
+                                       text="PLAYLISTA",
+                                       font=('Arial', 11, 'bold'),
+                                       bg=self.colors['bg_main'],
+                                       fg=self.colors['text_primary'],
+                                       bd=2, relief=tk.SOLID)
+        playlist_frame.pack(fill='x', pady=(0, 10))
 
-        track_name = "Brak — skonfiguruj w Trybie Inżynieryjnym"
-        frag_info_text = "Cały utwór"
-        if self.playlist:
-            fp = self.playlist[0]
-            track_name = os.path.basename(fp)
-            s, e = self.get_fragment_for_file(fp)
-            if s != 0 or e != 100:
-                frag_info_text = f"Fragment: {s}% → {e}%"
+        tk.Label(playlist_frame,
+                 text="Wybierz utwór przed startem testu:",
+                 font=('Arial', 9),
+                 bg=self.colors['bg_main'],
+                 fg=self.colors['text_secondary']).pack(anchor='w', padx=10, pady=(6, 2))
 
-        self.info_track_label = tk.Label(
-            info_frame,
-            text=f"Utwór: {track_name}",
-            font=('Arial', 8, 'bold'),
-            bg='#F5F5F5',
+        list_container = tk.Frame(playlist_frame, bg=self.colors['bg_main'])
+        list_container.pack(fill='x', padx=8, pady=(0, 8))
+
+        scrollbar = tk.Scrollbar(list_container)
+        scrollbar.pack(side='right', fill='y')
+
+        self.playlist_listbox = tk.Listbox(
+            list_container,
+            font=('Arial', 10),
+            bg=self.colors['bg_card'],
             fg=self.colors['text_primary'],
-            anchor='w'
+            selectbackground=self.colors['text_primary'],
+            selectforeground=self.colors['bg_main'],
+            bd=0, highlightthickness=0,
+            yscrollcommand=scrollbar.set,
+            height=4
         )
-        self.info_track_label.pack(fill='x', padx=10, pady=(6, 1))
+        self.playlist_listbox.pack(side='left', fill='x', expand=True)
+        scrollbar.config(command=self.playlist_listbox.yview)
+
+        # Wypełnij listbox
+        for fp in self.playlist:
+            self.playlist_listbox.insert(tk.END, os.path.basename(fp))
+        if self.playlist:
+            self.playlist_listbox.selection_set(0)
 
         self.info_frag_label = tk.Label(
-            info_frame,
-            text=f"{frag_info_text}  |  Playlista i fragment konfigurowane przez ENG",
-            font=('Arial', 7),
-            bg='#F5F5F5',
-            fg=self.colors['text_secondary'],
-            anchor='w'
+            playlist_frame,
+            text="Fragment: konfigurowany przez ENG",
+            font=('Arial', 9),
+            bg=self.colors['bg_main'],
+            fg=self.colors['text_secondary']
         )
-        self.info_frag_label.pack(fill='x', padx=10, pady=(0, 6))
+        self.info_frag_label.pack(anchor='w', padx=10, pady=(0, 6))
 
         # === POSTĘP ===
         progress_frame = tk.LabelFrame(main,
                                        text="POSTEP",
-                                       font=('Arial', 9, 'bold'),
+                                       font=('Arial', 11, 'bold'),
                                        bg=self.colors['bg_main'],
                                        fg=self.colors['text_primary'],
                                        bd=2, relief=tk.SOLID)
@@ -258,17 +275,17 @@ class ComboTest:
 
         self.phase_label = tk.Label(progress_frame,
                                     text="Gotowy do uruchomienia",
-                                    font=('Arial', 10, 'bold'),
+                                    font=('Arial', 16, 'bold'),
                                     bg=self.colors['bg_main'],
                                     fg=self.colors['text_primary'])
-        self.phase_label.pack(pady=(8, 3))
+        self.phase_label.pack(pady=(12, 4))
 
         self.progress_label = tk.Label(progress_frame,
                                        text="",
-                                       font=('Arial', 8),
+                                       font=('Arial', 12),
                                        bg=self.colors['bg_main'],
                                        fg=self.colors['text_secondary'])
-        self.progress_label.pack(pady=(0, 8))
+        self.progress_label.pack(pady=(0, 12))
 
         # === PRZYCISKI ===
         btn_frame = tk.Frame(main, bg=self.colors['bg_main'])
@@ -322,13 +339,15 @@ class ComboTest:
             return
 
         # Zaktualizuj info-bar
+        # Pobierz zaznaczony utwór z listboxa
+        selection = self.playlist_listbox.curselection()
+        if selection:
+            self.current_index = selection[0]
+
         fp = self.playlist[self.current_index]
         s, e = self.get_fragment_for_file(fp)
-        self.info_track_label.config(text=f"Utwór: {os.path.basename(fp)}")
         frag_text = f"Fragment: {s}% → {e}%" if (s != 0 or e != 100) else "Cały utwór"
-        self.info_frag_label.config(
-            text=f"{frag_text}  |  Playlista i fragment konfigurowane przez ENG"
-        )
+        self.info_frag_label.config(text=f"{frag_text} | konfigurowany przez ENG")
 
         # Resetuj wyniki
         self.test1_data = {}

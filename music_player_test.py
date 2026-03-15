@@ -216,41 +216,11 @@ class MusicPlayerTest:
         self.playlist_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.playlist_listbox.yview)
 
-        playlist_btn_frame = tk.Frame(playlist_frame, bg=self.colors['bg_main'])
-        playlist_btn_frame.pack(fill=tk.X, padx=8, pady=(0, 8))
-
-        self.add_files_btn = tk.Button(
-            playlist_btn_frame,
-            text="+ DODAJ PLIKI",
-            command=self.add_files,
-            bg=self.colors['button_bg'], fg=self.colors['button_fg'],
-            activebackground=self.colors['button_active'],
-            activeforeground=self.colors['button_active_fg'],
-            bd=2, relief=tk.SOLID, font=('Arial', 8), width=14
-        )
-        self.add_files_btn.pack(side=tk.LEFT, padx=2)
-
-        self.remove_btn = tk.Button(
-            playlist_btn_frame,
-            text="✖ USUŃ",
-            command=self.remove_selected,
-            bg=self.colors['button_bg'], fg=self.colors['button_fg'],
-            activebackground=self.colors['button_active'],
-            activeforeground=self.colors['button_active_fg'],
-            bd=2, relief=tk.SOLID, font=('Arial', 8), width=10
-        )
-        self.remove_btn.pack(side=tk.LEFT, padx=2)
-
-        self.clear_btn = tk.Button(
-            playlist_btn_frame,
-            text="🗑 WYCZYŚĆ",
-            command=self.clear_playlist,
-            bg=self.colors['button_bg'], fg=self.colors['button_fg'],
-            activebackground=self.colors['button_active'],
-            activeforeground=self.colors['button_active_fg'],
-            bd=2, relief=tk.SOLID, font=('Arial', 8), width=12
-        )
-        self.clear_btn.pack(side=tk.LEFT, padx=2)
+        tk.Label(playlist_frame,
+                 text="Wybierz utwór klikając na liście:",
+                 font=('Arial', 8),
+                 bg=self.colors['bg_main'],
+                 fg=self.colors['text_secondary']).pack(anchor='w', padx=8, pady=(0, 6))
 
         # === INFO O FRAGMENCIE (tylko do odczytu — konfiguracja w Trybie Inżynieryjnym) ===
         self.fragment_info_frame = tk.Frame(
@@ -834,9 +804,6 @@ class MusicPlayerTest:
         self.forward_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
         self.volume_slider.config(state=tk.DISABLED)
         self.playlist_listbox.config(state=tk.DISABLED)
-        self.add_files_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
-        self.remove_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
-        self.clear_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
         self.auto_start_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
         self.auto_stop_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
 
@@ -895,9 +862,6 @@ class MusicPlayerTest:
 
         self.auto_start_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
         self.auto_stop_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
-        self.add_files_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
-        self.remove_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
-        self.clear_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
         self.volume_slider.config(state=tk.NORMAL)
         self.playlist_listbox.config(state=tk.NORMAL)
         self.update_buttons_stopped()
