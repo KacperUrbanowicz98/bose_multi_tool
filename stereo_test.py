@@ -302,101 +302,6 @@ class StereoTest:
         self.btn_stop.pack(pady=(0, 10))
         self._bind_hover(self.btn_stop)
 
-        # === SEKCJA USTAWIEŃ ===
-        settings_frame = tk.Frame(main_container, bg=self.colors['bg_card'], relief='solid', borderwidth=1)
-        settings_frame.pack(fill='x')
-
-        settings_title = tk.Label(
-            settings_frame,
-            text="USTAWIENIA",
-            font=('Arial', 11, 'bold'),
-            bg=self.colors['bg_card'],
-            fg=self.colors['text_primary']
-        )
-        settings_title.pack(pady=(10, 8))
-
-        # Częstotliwość
-        freq_container = tk.Frame(settings_frame, bg=self.colors['bg_card'])
-        freq_container.pack(fill='x', padx=20, pady=(0, 10))
-
-        freq_label_frame = tk.Frame(freq_container, bg=self.colors['bg_card'])
-        freq_label_frame.pack(fill='x')
-
-        freq_label = tk.Label(
-            freq_label_frame,
-            text="Częstotliwość tonu testowego:",
-            font=('Arial', 10),
-            bg=self.colors['bg_card'],
-            fg=self.colors['text_primary']
-        )
-        freq_label.pack(side='left')
-
-        self.freq_value_label = tk.Label(
-            freq_label_frame,
-            text=f"{self.frequency} Hz",
-            font=('Arial', 10, 'bold'),
-            bg=self.colors['bg_card'],
-            fg=self.colors['text_primary']
-        )
-        self.freq_value_label.pack(side='right')
-
-        self.freq_slider = tk.Scale(
-            freq_container,
-            from_=100,
-            to=5000,
-            orient='horizontal',
-            command=self.update_frequency,
-            bg=self.colors['slider_bg'],
-            fg=self.colors['text_primary'],
-            highlightthickness=0,
-            troughcolor=self.colors['bg_main'],
-            activebackground=self.colors['text_primary'],
-            relief='flat'
-        )
-        self.freq_slider.set(self.frequency)
-        self.freq_slider.pack(fill='x', pady=(5, 0))
-
-        # Głośność
-        vol_container = tk.Frame(settings_frame, bg=self.colors['bg_card'])
-        vol_container.pack(fill='x', padx=20, pady=(8, 10))
-
-        vol_label_frame = tk.Frame(vol_container, bg=self.colors['bg_card'])
-        vol_label_frame.pack(fill='x')
-
-        vol_label = tk.Label(
-            vol_label_frame,
-            text="Głośność:",
-            font=('Arial', 10),
-            bg=self.colors['bg_card'],
-            fg=self.colors['text_primary']
-        )
-        vol_label.pack(side='left')
-
-        self.vol_value_label = tk.Label(
-            vol_label_frame,
-            text=f"{self.volume}%",
-            font=('Arial', 10, 'bold'),
-            bg=self.colors['bg_card'],
-            fg=self.colors['text_primary']
-        )
-        self.vol_value_label.pack(side='right')
-
-        self.vol_slider = tk.Scale(
-            vol_container,
-            from_=0,
-            to=100,
-            orient='horizontal',
-            command=self.update_volume,
-            bg=self.colors['slider_bg'],
-            fg=self.colors['text_primary'],
-            highlightthickness=0,
-            troughcolor=self.colors['bg_main'],
-            activebackground=self.colors['text_primary'],
-            relief='flat'
-        )
-        self.vol_slider.set(self.volume)
-        self.vol_slider.pack(fill='x', pady=(5, 0))
-
         # === PRZYCISK POWROTU ===
         back_button = tk.Button(
             main_container,
@@ -436,10 +341,7 @@ class StereoTest:
         # Ustaw parametry
         self.frequency = self.auto_frequency
         self.volume = self.auto_volume
-        self.freq_slider.set(self.auto_frequency)
-        self.vol_slider.set(self.auto_volume)
-        self.freq_value_label.config(text=f"{self.auto_frequency} Hz")
-        self.vol_value_label.config(text=f"{self.auto_volume}%")
+
 
         # Zatrzymaj normalny test
         if self.is_playing:
@@ -453,8 +355,7 @@ class StereoTest:
         self.btn_right.config(state=tk.DISABLED)
         self.btn_both.config(state=tk.DISABLED)
         self.btn_stop.config(state=tk.DISABLED)
-        self.freq_slider.config(state=tk.DISABLED)
-        self.vol_slider.config(state=tk.DISABLED)
+
 
         self.auto_start_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
         self.auto_stop_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
@@ -527,8 +428,7 @@ class StereoTest:
         self.btn_right.config(state=tk.NORMAL)
         self.btn_both.config(state=tk.NORMAL)
         self.btn_stop.config(state=tk.NORMAL)
-        self.freq_slider.config(state=tk.NORMAL)
-        self.vol_slider.config(state=tk.NORMAL)
+
 
         self.auto_start_btn.config(state=tk.NORMAL, bg=self.colors['button_bg'], fg=self.colors['button_fg'])
         self.auto_stop_btn.config(state=tk.DISABLED, bg=self.colors['bg_card'], fg=self.colors['text_secondary'])
@@ -663,9 +563,9 @@ class StereoTest:
         self.vol_value_label.config(text=f"{self.volume}%")
 
     def generate_tone(self, frequency, duration, sample_rate=44100):
-        """Generuje ton sinusoidalny"""
+        """Generuje ton trójkątny 300Hz"""
         t = np.linspace(0, duration, int(sample_rate * duration), False)
-        tone = np.sin(frequency * 2 * np.pi * t)
+        tone = 2 * np.abs(2 * (t * 300 - np.floor(t * 300 + 0.5))) - 1
 
         # Normalizacja do 16-bit
         tone = (tone * 32767).astype(np.int16)
@@ -703,32 +603,28 @@ class StereoTest:
     def _play_sound_thread(self, channel):
         """Wątek odtwarzający dźwięk"""
         try:
+            tone = self.generate_tone(self.frequency, 2.0)  # 2s bufor
+
+            if channel == 'left':
+                stereo_tone = np.zeros((len(tone), 2), dtype=np.int16)
+                stereo_tone[:, 0] = tone
+            elif channel == 'right':
+                stereo_tone = np.zeros((len(tone), 2), dtype=np.int16)
+                stereo_tone[:, 1] = tone
+            else:
+                stereo_tone = np.column_stack((tone, tone))
+
+            volume_factor = self.volume / 100.0
+            stereo_tone = (stereo_tone * volume_factor).astype(np.int16)
+
+            sound = pygame.sndarray.make_sound(stereo_tone)
+            sound.play(loops=-1)  # ← ciągłe odtwarzanie bez przerw
 
             while not self.stop_sound:
-                # Generuj krótki odcinek tonu (0.5 sekundy)
-                tone = self.generate_tone(self.frequency, 0.5)
+                time.sleep(0.05)
 
-                # Utwórz stereo (2 kanały)
-                if channel == 'left':
-                    stereo_tone = np.zeros((len(tone), 2), dtype=np.int16)
-                    stereo_tone[:, 0] = tone  # Lewy kanał
-                elif channel == 'right':
-                    stereo_tone = np.zeros((len(tone), 2), dtype=np.int16)
-                    stereo_tone[:, 1] = tone  # Prawy kanał
-                else:  # both
-                    stereo_tone = np.column_stack((tone, tone))
+            sound.stop()
 
-                # Zastosuj głośność
-                volume_factor = self.volume / 100.0
-                stereo_tone = (stereo_tone * volume_factor).astype(np.int16)
-
-                # Odtwórz dźwięk
-                sound = pygame.sndarray.make_sound(stereo_tone)
-                sound.play()
-
-                # Czekaj na zakończenie odtwarzania
-                while pygame.mixer.get_busy() and not self.stop_sound:
-                    time.sleep(0.05)
         except Exception as e:
             print(f"Błąd w wątku dźwięku: {e}")
         finally:

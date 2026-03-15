@@ -1,12 +1,12 @@
 {
     "app": {
-        "version": "1.0.3",
+        "version": "1.0.4",
         "first_run": false,
         "window_geometry": {
             "main": "550x700+156+156",
-            "music_player": "650x865",
-            "tone_generator": "580x720",
-            "stereotest": "580x950"
+            "music_player": "650x820",
+            "tone_generator": "580x820",
+            "stereo_test": "500x750"
         }
     },
     "security": {
@@ -45,14 +45,7 @@
             "4kHz": 0,
             "16kHz": 0
         },
-        "fragment_start_pct": 24,
-        "fragment_end_pct": 100,
-        "fragments": {
-            "C:/Users/kurba/Downloads/Utwór testowy nr 1.mp3": {
-                "start_pct": 12,
-                "end_pct": 100
-            }
-        }
+        "fragments": {}
     },
     "tone_generator": {
         "default_frequency": 1000,
@@ -76,16 +69,16 @@
             80
         ]
     },
-    "test3_auto": {
-        "duration_per_channel": 5,
-        "frequency": 1000,
-        "volume": 50
-    },
     "test2_auto": {
         "wave_type": "sine",
         "freq_min": 20,
         "freq_max": 20000,
-        "duration": 10,
+        "duration": 11,
+        "volume": 50
+    },
+    "test3_auto": {
+        "duration_per_channel": 5,
+        "frequency": 1000,
         "volume": 50
     }
 }

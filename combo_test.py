@@ -612,7 +612,7 @@ class ComboTest:
             channel_names = {'left': 'Lewy', 'right': 'Prawy', 'both': 'Oba'}
 
             self.progress_label.config(
-                text=f"Kanal: {channel_names[channel]} ({self.t3_channel_index + 1}/3)"
+                text=f"Kanał: {channel_names[channel]} ({self.t3_channel_index + 1}/3)"
             )
 
             self.t3_stop_sound = True
@@ -638,28 +638,31 @@ class ComboTest:
     def play_stereo_channel(self, channel):
         try:
             sample_rate = 44100
+            duration = 2.0
+            t = np.linspace(0, duration, int(sample_rate * duration), False)
+            tone = 2 * np.abs(2 * (t * 300 - np.floor(t * 300 + 0.5))) - 1
+            tone = (tone * 32767).astype(np.int16)
+
+            if channel == 'left':
+                stereo = np.zeros((len(tone), 2), dtype=np.int16)
+                stereo[:, 0] = tone
+            elif channel == 'right':
+                stereo = np.zeros((len(tone), 2), dtype=np.int16)
+                stereo[:, 1] = tone
+            else:
+                stereo = np.column_stack((tone, tone))
+
+            volume_factor = self.t3_volume / 100.0
+            stereo = (stereo * volume_factor).astype(np.int16)
+
+            sound = pygame.sndarray.make_sound(stereo)
+            sound.play(loops=-1)  # ← ciągłe bez przerw
+
             while not self.t3_stop_sound:
-                t = np.linspace(0, 0.5, int(sample_rate * 0.5), False)
-                tone = np.sin(self.t3_frequency * 2 * np.pi * t)
-                tone = (tone * 32767).astype(np.int16)
+                time.sleep(0.05)
 
-                if channel == 'left':
-                    stereo = np.zeros((len(tone), 2), dtype=np.int16)
-                    stereo[:, 0] = tone
-                elif channel == 'right':
-                    stereo = np.zeros((len(tone), 2), dtype=np.int16)
-                    stereo[:, 1] = tone
-                else:
-                    stereo = np.column_stack((tone, tone))
+            sound.stop()
 
-                volume_factor = self.t3_volume / 100.0
-                stereo = (stereo * volume_factor).astype(np.int16)
-
-                sound = pygame.sndarray.make_sound(stereo)
-                sound.play()
-
-                while pygame.mixer.get_busy() and not self.t3_stop_sound:
-                    time.sleep(0.05)
         except Exception as e:
             print(f"[COMBO] Blad watku T3: {e}")
 

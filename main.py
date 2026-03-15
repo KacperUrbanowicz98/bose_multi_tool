@@ -1499,8 +1499,8 @@ class AudioMultiTool:
         tests = [
             ("TEST 1", "Test głośności", self.open_music_player_test, 'normal'),
             ("TEST 2", "Generator Częstotliwości", self.open_tone_generator_test, 'normal'),
-            ('TEST 3', 'Test Stereo', self.open_stereo_test, 'normal'),
-            ('TEST 4', 'COMBO Test (1+2+3)', self.open_combo_test, 'normal'),
+            ('TEST 3', 'Test Stereo (L/R)', self.open_stereo_test, 'normal'),
+            ('TEST 4', 'COMBO Test', self.open_combo_test, 'normal'),
         ]
 
         for i, (title, subtitle, cmd, state) in enumerate(tests):
