@@ -51,7 +51,7 @@ def main():
         "pyinstaller",
         "--onefile",
         "--windowed",
-        "--name", "Bose - Audio Test 1.0.2",
+        "--name", "Bose - Audio Test 1.0.4",
         "--icon=icon.ico",
         "--add-data", f"{config_path};.",
         "--hidden-import=pygame",
@@ -63,7 +63,7 @@ def main():
 
     print("\n" + "=" * 55)
     if result.returncode == 0:
-        exe_path = os.path.join("dist", "Bose - Audio Test 1.0.2.exe")
+        exe_path = os.path.join("dist", "Bose - Audio Test 1.0.4.exe")
         print(f"[+] SUKCES! Plik EXE gotowy:")
         print(f"    {os.path.abspath(exe_path)}")
     else:

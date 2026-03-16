@@ -3,7 +3,7 @@
         "version": "1.0.4",
         "first_run": false,
         "window_geometry": {
-            "main": "550x700+156+156",
+            "main": "550x700+78+78",
             "music_player": "650x820",
             "tone_generator": "580x820",
             "stereo_test": "500x750"
@@ -45,7 +45,12 @@
             "4kHz": 0,
             "16kHz": 0
         },
-        "fragments": {}
+        "fragments": {
+            "C:/Users/kurba/Downloads/Utwór testowy nr 1.mp3": {
+                "start_pct": 35,
+                "end_pct": 100
+            }
+        }
     },
     "tone_generator": {
         "default_frequency": 1000,

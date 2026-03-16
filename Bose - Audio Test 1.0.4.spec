@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('audio_tool_config.json', '.')],
+    datas=[('C:\\Users\\kurba\\PycharmProjects\\bose_multi_tool\\audio_tool_config.json', '.')],
     hiddenimports=['pygame', 'numpy'],
     hookspath=[],
     hooksconfig={},
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='BoseMultiTool',
+    name='Bose - Audio Test 1.0.4',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -35,4 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['icon.ico'],
 )

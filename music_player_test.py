@@ -814,7 +814,6 @@ class MusicPlayerTest:
             return
 
         if self.auto_test_step >= len(self.auto_test_volumes):
-            self.save_test_report(status="PASS", interrupted=False)
             self.stop_auto_test(save_report=False)
             self.show_auto_close_message()
             return
@@ -894,35 +893,54 @@ class MusicPlayerTest:
             print(f"Błąd zapisu raportu: {e}")
 
     def show_auto_close_message(self):
-        msg_window = tk.Toplevel(self.window)
-        msg_window.title("Test zakończony")
-        msg_window.geometry("400x150")
-        msg_window.configure(bg=self.colors['bg_main'])
-        msg_window.resizable(False, False)
-        msg_window.transient(self.window)
+        eval_window = tk.Toplevel(self.window)
+        eval_window.title("Ocena wyników testu")
+        eval_window.configure(bg='#FFFFFF')
+        eval_window.resizable(False, False)
+        eval_window.attributes('-topmost', True)
+        eval_window.transient(self.window)
+        eval_window.grab_set()
 
-        msg_window.update_idletasks()
-        x = (msg_window.winfo_screenwidth() // 2) - 200
-        y = (msg_window.winfo_screenheight() // 2) - 75
-        msg_window.geometry(f"+{x}+{y}")
+        w, h = 360, 220
+        eval_window.update_idletasks()
+        x = (eval_window.winfo_screenwidth() // 2) - (w // 2)
+        y = (eval_window.winfo_screenheight() // 2) - (h // 2)
+        eval_window.geometry(f"{w}x{h}+{x}+{y}")
 
-        tk.Label(msg_window,
-                 text="✓ Test zakończony pomyślnie!",
-                 font=('Arial', 12, 'bold'),
-                 bg=self.colors['bg_main'],
-                 fg='#4CAF50').pack(pady=(30, 10))
+        tk.Label(eval_window, text="OCENA WYNIKÓW - TEST 1",
+                 font=('Arial', 12, 'bold'), bg='#FFFFFF', fg='#000000').pack(pady=(20, 5))
+        tk.Label(eval_window, text="Czy odtwarzacz muzyki działa poprawnie?",
+                 font=('Arial', 9), bg='#FFFFFF', fg='#666666').pack(pady=(0, 15))
+        tk.Frame(eval_window, bg='#000000', height=1).pack(fill='x', padx=20, pady=(0, 15))
 
-        tk.Label(msg_window,
-                 text="Raport został zapisany.\nOkno zamknie się za 3 sekundy...",
-                 font=('Arial', 9),
-                 bg=self.colors['bg_main'],
-                 fg=self.colors['text_secondary']).pack(pady=(0, 20))
+        result_var = tk.StringVar(value='PASS')
 
-        msg_window.after(3000, lambda: self.restart_test_after_success(msg_window))
+        btn_frame = tk.Frame(eval_window, bg='#FFFFFF')
+        btn_frame.pack(pady=5)
 
-    def restart_test_after_success(self, msg_window):
-        try:
-            msg_window.destroy()
+        def set_result(val):
+            result_var.set(val)
+            for b in (pass_btn, fail_btn):
+                b.config(bg='#FFFFFF', fg='#000000')
+            if val == 'PASS':
+                pass_btn.config(bg='#000000', fg='#FFFFFF')
+            else:
+                fail_btn.config(bg='#000000', fg='#FFFFFF')
+
+        pass_btn = tk.Button(btn_frame, text="✓ PASS", width=12, font=('Arial', 10, 'bold'),
+                             bg='#000000', fg='#FFFFFF', bd=2, relief=tk.SOLID,
+                             command=lambda: set_result('PASS'))
+        pass_btn.pack(side=tk.LEFT, padx=8)
+
+        fail_btn = tk.Button(btn_frame, text="✗ FAIL", width=12, font=('Arial', 10, 'bold'),
+                             bg='#FFFFFF', fg='#000000', bd=2, relief=tk.SOLID,
+                             command=lambda: set_result('FAIL'))
+        fail_btn.pack(side=tk.LEFT, padx=8)
+
+        def confirm():
+            status = result_var.get()
+            self.save_test_report(status=status, interrupted=False)
+            eval_window.destroy()
             if self.scan_callback:
                 new_serial = self.scan_callback("TEST 1 - Odtwarzacz Muzyki")
                 if new_serial:
@@ -935,9 +953,25 @@ class MusicPlayerTest:
                     self.close_window()
             else:
                 self.close_window()
-        except Exception as e:
-            print(f"[DEBUG] Błąd restartu: {e}")
-            self.close_window()
+
+        def _do_restart_later():
+            if self.scan_callback:
+                new_serial = self.scan_callback("TEST 1 - Odtwarzacz Muzyki")
+                if new_serial:
+                    self.device_serial = new_serial
+                    self.auto_test_step = 0
+                    self.auto_test_start_time = None
+                    self.window.lift()
+                    self.window.focus_force()
+                else:
+                    self.close_window()
+            else:
+                self.close_window()
+
+
+        tk.Button(eval_window, text="ZATWIERDŹ", font=('Arial', 9, 'bold'),
+                  bg='#FFFFFF', fg='#000000', bd=2, relief=tk.SOLID, width=16,
+                  command=confirm).pack(pady=(15, 0))
 
     # ─────────────────────────────────────────
     # ZAMKNIĘCIE

@@ -378,7 +378,6 @@ class StereoTest:
 
             if not self.auto_test_running or self.current_test_index >= len(channels):
                 # Test zakończony
-                self.save_test_report(status="PASS", interrupted=False)
                 self.stop_auto_test(save_report=False)
                 self.show_auto_close_message()  # <-- ZMIENIONE
                 return
@@ -461,75 +460,71 @@ class StereoTest:
             print(f"Błąd zapisu raportu TEST 3: {e}")
 
     # === NOWE FUNKCJE DO SKANOWANIA ===
-
     def show_auto_close_message(self):
-        """Pokazuje komunikat który znika po 3 sekundach i restartuje test"""
-        msg_window = tk.Toplevel(self.window)
-        msg_window.title("Test zakończony")
-        msg_window.geometry("400x150")
-        msg_window.configure(bg='#FFFFFF')
-        msg_window.resizable(False, False)
-        msg_window.attributes('-topmost', True)
-        msg_window.transient(self.window)
+        eval_window = tk.Toplevel(self.window)
+        eval_window.title("Ocena wyników testu")
+        eval_window.configure(bg='#FFFFFF')
+        eval_window.resizable(False, False)
+        eval_window.attributes('-topmost', True)
+        eval_window.transient(self.window)
+        eval_window.grab_set()
 
-        # Wyśrodkuj
-        msg_window.update_idletasks()
-        x = (msg_window.winfo_screenwidth() // 2) - (400 // 2)
-        y = (msg_window.winfo_screenheight() // 2) - (150 // 2)
-        msg_window.geometry(f"+{x}+{y}")
+        w, h = 360, 220
+        eval_window.update_idletasks()
+        x = (eval_window.winfo_screenwidth() // 2) - (w // 2)
+        y = (eval_window.winfo_screenheight() // 2) - (h // 2)
+        eval_window.geometry(f"{w}x{h}+{x}+{y}")
 
-        tk.Label(msg_window,
-                 text="✓ Test zakończony pomyślnie!",
-                 font=('Arial', 12, 'bold'),
-                 bg='#FFFFFF',
-                 fg='#4CAF50').pack(pady=(30, 10))
+        tk.Label(eval_window, text="OCENA WYNIKÓW - TEST 3",
+                 font=('Arial', 12, 'bold'), bg='#FFFFFF', fg='#000000').pack(pady=(20, 5))
+        tk.Label(eval_window, text="Czy kanały Lewy/Prawy działają poprawnie?",
+                 font=('Arial', 9), bg='#FFFFFF', fg='#666666').pack(pady=(0, 15))
+        tk.Frame(eval_window, bg='#000000', height=1).pack(fill='x', padx=20, pady=(0, 15))
 
-        tk.Label(msg_window,
-                 text="Raport został zapisany.\nOkno zamknie się za 3 sekundy...",
-                 font=('Arial', 9),
-                 bg='#FFFFFF',
-                 fg='#666666').pack(pady=(0, 20))
+        result_var = tk.StringVar(value='PASS')
 
-        # Zamknij okno po 3 sekundach i zrestartuj skanowanie
-        msg_window.after(3000, lambda: self.restart_test_after_success(msg_window))
+        btn_frame = tk.Frame(eval_window, bg='#FFFFFF')
+        btn_frame.pack(pady=5)
 
-    def restart_test_after_success(self, msg_window):
-        """Zamyka komunikat i pokazuje okno skanowania dla kolejnego urządzenia"""
-        try:
-            msg_window.destroy()
+        def set_result(val):
+            result_var.set(val)
+            for b in (pass_btn, fail_btn):
+                b.config(bg='#FFFFFF', fg='#000000')
+            if val == 'PASS':
+                pass_btn.config(bg='#000000', fg='#FFFFFF')
+            else:
+                fail_btn.config(bg='#000000', fg='#FFFFFF')
 
-            # Sprawdź czy mamy callback do skanowania
+        pass_btn = tk.Button(btn_frame, text="✓ PASS", width=12, font=('Arial', 10, 'bold'),
+                             bg='#000000', fg='#FFFFFF', bd=2, relief=tk.SOLID,
+                             command=lambda: set_result('PASS'))
+        pass_btn.pack(side=tk.LEFT, padx=8)
+
+        fail_btn = tk.Button(btn_frame, text="✗ FAIL", width=12, font=('Arial', 10, 'bold'),
+                             bg='#FFFFFF', fg='#000000', bd=2, relief=tk.SOLID,
+                             command=lambda: set_result('FAIL'))
+        fail_btn.pack(side=tk.LEFT, padx=8)
+
+        def confirm():
+            status = result_var.get()
+            self.save_test_report(status=status, interrupted=False)
+            eval_window.destroy()
             if self.scan_callback:
                 new_serial = self.scan_callback("TEST 3 - Test Stereo")
-
                 if new_serial:
-                    # Zaktualizuj numer seryjny
                     self.device_serial = new_serial
-
-                    # Resetuj stan testu
                     self.current_test_index = 0
                     self.auto_test_start_time = None
-
-                    # PRZYWRÓĆ FOCUS NA OKNO TESTU
-                    self.window.lift()
-                    self.window.focus_force()
-
-                    # Ponownie przywróć focus
                     self.window.lift()
                     self.window.focus_force()
                 else:
-                    # Operator kliknął WYJDŹ - zamknij test
                     self.window.destroy()
             else:
-                # Brak callbacka - zamknij test
                 self.window.destroy()
 
-        except Exception as e:
-            print(f"[DEBUG] Błąd restartu TEST3: {e}")
-            try:
-                self.window.destroy()
-            except:
-                pass
+        tk.Button(eval_window, text="ZATWIERDŹ", font=('Arial', 9, 'bold'),
+                  bg='#FFFFFF', fg='#000000', bd=2, relief=tk.SOLID, width=16,
+                  command=confirm).pack(pady=(15, 0))
 
     # === ORIGINAL METHODS (bez zmian) ===
 
